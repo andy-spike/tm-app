@@ -1,0 +1,26 @@
+{
+  "name": "tm-app",
+  "private": true,
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "mobile": "node scripts/world.mjs mobile",
+    "android": "node scripts/world.mjs android",
+    "motis:setup": "services/motis/scripts/setup.sh",
+    "motis": "node scripts/world.mjs motis",
+    "typecheck": "pnpm -r exec tsc --noEmit",
+    "lint": "pnpm -r lint",
+    "bundle:build": "pnpm --filter @tm/pipeline build",
+    "bundle:serve": "node scripts/world.mjs bundle",
+    "bundle:compare": "pnpm --filter @tm/pipeline compare",
+    "test": "pnpm --filter @tm/core test",
+    "bundle:maps": "pnpm --filter @tm/pipeline exec tsx src/maps.ts",
+    "worktree:setup": "node scripts/world.mjs setup",
+    "world:status": "node scripts/world.mjs status",
+    "world:exec": "node scripts/world.mjs exec",
+    "check": "pnpm test:world && pnpm typecheck && pnpm lint && pnpm test",
+    "test:world": "node --test scripts/world.test.mjs"
+  }
+}

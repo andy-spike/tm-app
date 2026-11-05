@@ -1,0 +1,20 @@
+{
+  "name": "@tm/pipeline",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx src/build.ts",
+    "serve": "tsx src/serve.ts",
+    "compare": "tsx src/compare.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tm/core": "workspace:*",
+    "csv-parse": "^6.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "@types/node": "^24.0.0",
+    "typescript": "~6.0.3"
+  }
+}

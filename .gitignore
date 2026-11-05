@@ -1,0 +1,23 @@
+node_modules/
+.DS_Store
+*.log
+.env*.local
+
+# MOTIS: binary, downloaded inputs and generated data are rebuilt by setup.sh
+services/motis/bin/
+services/motis/input/
+services/motis/data/
+
+services/pipeline/out/
+services/pipeline/.tmp/
+
+# Checkout-local runtime, caches, secrets and agent preferences
+.world/
+.env
+.env.*
+!.env.example
+.claude/
+
+# Worktrunk can create checkouts beneath this repository
+.worktrees/
+.wortrees/

@@ -1,0 +1,24 @@
+# MOTIS config for Bogotá. Paths are relative to services/motis/.
+# Full option reference: https://github.com/motis-project/motis/blob/master/docs/setup.md
+server:
+  port: 8080
+  web_folder: bin/ui
+  data_attribution_link: https://www.transmilenio.gov.co/
+osm: input/bogota.osm.pbf
+tiles:
+  profile: bin/tiles-profiles/full.lua
+timetable:
+  first_day: TODAY
+  num_days: 120
+  with_shapes: true
+  railviz: true
+  datasets:
+    tm:
+      path: input/transmilenio.gtfs.zip
+      extend_calendar: true
+street_routing: true
+osr_footpath: true
+geocoding: true
+reverse_geocoding: true
+logging:
+  log_level: info
