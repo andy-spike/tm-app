@@ -21,6 +21,7 @@
     "world:status": "node scripts/world.mjs status",
     "world:exec": "node scripts/world.mjs exec",
     "check": "pnpm test:world && pnpm typecheck && pnpm lint && pnpm test",
-    "test:world": "node --test scripts/world.test.mjs"
+    "test:world": "node --test scripts/world.test.mjs",
+    "android:emulators:setup": "bash scripts/setup-emulators.sh"
   }
 }
