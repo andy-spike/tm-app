@@ -69,3 +69,19 @@ Detailed measurements, sample methodology and validation are recorded in [the be
 ## Working with agents
 
 See [the agent worktree workflow](docs/agent-workflow.md) for T3 Code setup, isolated service commands, device ownership and validated merges into main. Run `pnpm worktree:setup` once in each checkout before starting services. Service ports are printed by `pnpm world:status`; use those ports instead of the fixed single-checkout examples above.
+
+## Expo development builds
+
+The mobile app uses Expo SDK 58 (`expo ~58.0.23`), React Native 0.88.1, and SDK-compatible Expo modules. `expo-dev-client` supplies the native development launcher and debugging tools. Metro automatically selects the development client when it is installed; Expo Go cannot load this app's MapLibre native module.
+
+After pulling dependency or native configuration updates, run `pnpm worktree:setup` in your checkout. Rebuild the development app before testing it. If that checkout already has generated Android files, regenerate them first:
+
+```bash
+pnpm --filter @tm/mobile exec expo prebuild --clean --platform android --no-install
+pnpm android --device <assigned-adb-serial>
+pnpm mobile
+```
+
+The prebuild command regenerates ignored native files from app.json and config plugins; keep native customizations in those sources. Use the assigned emulator and forward the ports shown by `pnpm world:status`, as described in the agent workflow. Build iOS on a Mac with Xcode, regenerating its native project after native dependency changes as well.
+
+Validate dependency alignment with `pnpm --filter @tm/mobile exec expo install --check`. Run Expo Doctor against `apps/mobile`, rather than the monorepo root, and run `pnpm check` for the workspace checks.
