@@ -90,7 +90,6 @@ import com.tmapp.android.ui.theme.Spacing
 import com.tmapp.data.NearbyStop
 import com.tmapp.transit.BOGOTA
 import com.tmapp.transit.Geo
-import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -193,7 +192,7 @@ private fun HomeSheet(
 ) {
     val data = LocalTransit.current
     val now = rememberNow()
-    val hour = remember(now) { LocalTime.ofInstant(now, BOGOTA).hour }
+    val hour = remember(now) { now.atZone(BOGOTA).hour }
     LazyColumn(
         Modifier.fillMaxWidth().heightIn(min = 200.dp),
         contentPadding = PaddingValues(bottom = Spacing.xxl),

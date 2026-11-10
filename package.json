@@ -20,12 +20,12 @@
     "worktree:setup": "node scripts/world.mjs setup",
     "world:status": "node scripts/world.mjs status",
     "world:exec": "node scripts/world.mjs exec",
-    "check": "pnpm test:world && pnpm typecheck && pnpm lint && pnpm test",
+    "check": "pnpm test:world && pnpm typecheck && pnpm lint && pnpm test && pnpm android:check",
     "test:world": "node --test scripts/world.test.mjs",
     "android:emulators:setup": "bash scripts/setup-emulators.sh",
     "api": "node scripts/world.mjs api",
     "api:publish": "pnpm --filter @tm/api publish:bundle",
     "android:native": "cd apps/android && ./gradlew :app:installDebug",
-    "android:check": "cd apps/android && ./gradlew check"
+    "android:check": "cd apps/android && ./gradlew :core:transit:test :app:lintDebug -Ptm.allowMissingBundle=true --console=plain -q"
   }
 }

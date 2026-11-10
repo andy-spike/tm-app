@@ -66,6 +66,19 @@ The measured 2026 feed contains 8,314 stops, 1,045 routes, 180,321 usable trips,
 
 Detailed measurements, sample methodology and validation are recorded in [the benchmark report](services/pipeline/BENCHMARK.md).
 
+## Native Android app (v1, offline)
+
+`apps/android` is a native Kotlin app: Jetpack Compose, Material 3, Navigation 3, Hilt, Room, MapLibre. It ships the timetable, route shapes and an offline Bogotá map inside the APK, so it works with no connection from the first launch. It answers four questions offline: which stops are near me, when the next scheduled bus leaves, where a route goes, and how to get somewhere (an on-device RAPTOR planner, depart-at and arrive-by). Every time is labelled as scheduled. See the [plan](docs/android/PLAN.md) and [module notes](apps/android/AGENTS.md).
+
+`services/api` is a Cloudflare Worker that publishes new timetables: release metadata in D1, immutable files in R2, range requests for resumable downloads. The app checks once a day on Wi-Fi, verifies sizes and SHA-256 digests, and swaps the new data in without a restart.
+
+```bash
+pnpm api            # local Worker (Wrangler/Miniflare) on this checkout's bundle port, state in .world/wrangler
+pnpm api:publish    # upload services/pipeline/out/<latest> to local R2 and publish it in D1 (--remote for Cloudflare)
+pnpm --filter @tm/pipeline map-style   # regenerate offline map styles and glyphs
+pnpm android:check  # Kotlin tests and Android lint (part of pnpm check)
+```
+
 ## Working with agents
 
 See [the agent worktree workflow](docs/agent-workflow.md) for T3 Code setup, isolated service commands, device ownership and validated merges into main. Run `pnpm worktree:setup` once in each checkout before starting services. Service ports are printed by `pnpm world:status`; use those ports instead of the fixed single-checkout examples above.

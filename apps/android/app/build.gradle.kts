@@ -64,13 +64,20 @@ kotlin { jvmToolchain(21) }
 
 /** Copies the pipeline's latest bundle into generated assets; binaries never enter git. */
 abstract class SyncBundle : DefaultTask() {
-    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val pipelineOut: DirectoryProperty
+    @get:Internal abstract val pipelineOut: DirectoryProperty
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
+    /** Checks and lint may run without data (fresh worktrees); installable builds may not. */
+    @get:Input abstract val allowMissing: Property<Boolean>
+
+    init { outputs.upToDateWhen { false } }
 
     @TaskAction fun run() {
         val out = pipelineOut.get().asFile
         val latest = File(out, "latest.json")
-        if (!latest.exists()) throw GradleException("No timetable bundle. Run `pnpm bundle:build` (and `pnpm bundle:maps` for the map) first.")
+        if (!latest.exists()) {
+            if (allowMissing.get()) { logger.warn("No timetable bundle; building without data."); return }
+            throw GradleException("No timetable bundle. Run `pnpm bundle:build` (and `pnpm bundle:maps` for the map) first.")
+        }
         val version = (JsonSlurper().parse(latest) as Map<*, *>)["version"] as String
         val source = File(out, version)
         val target = outputDir.get().asFile.resolve("bundle").apply { deleteRecursively(); mkdirs() }
@@ -84,6 +91,7 @@ abstract class SyncBundle : DefaultTask() {
 
 val syncBundle = tasks.register<SyncBundle>("syncBundle") {
     pipelineOut.set(File(repoRoot, "services/pipeline/out"))
+    allowMissing.set(providers.gradleProperty("tm.allowMissingBundle").map { it.toBoolean() }.orElse(false))
     outputDir.set(layout.buildDirectory.dir("generated/tmBundle"))
 }
 

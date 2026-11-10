@@ -84,7 +84,7 @@ fun rememberNow(): Instant {
 
 @Composable
 fun clock(instant: Instant): String {
-    val locale = LocalContext.current.resources.configuration.locales[0] ?: Locale.getDefault()
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     return remember(instant, locale) {
         DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(instant.atZone(BOGOTA))
     }
@@ -310,6 +310,6 @@ class TimeFormat(private val context: android.content.Context) {
 @Composable
 fun rememberTimeFormat(): TimeFormat {
     val context = LocalContext.current
-    val locale = context.resources.configuration.locales[0]
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     return remember(context, locale) { TimeFormat(context) }
 }
