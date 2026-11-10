@@ -74,16 +74,16 @@ class ServiceDay(val timetable: Timetable, val date: LocalDate) {
     }
 
     fun departureAt(run: Int, position: Int): Int =
-        runStart[run] + timetable.profileTimes[timetable.profileTimeStart[profileOf(run)] + 2 * position + 1]
+        runStart[run] + timetable.time(timetable.profileTimeStart[profileOf(run)] + 2 * position + 1)
 
     fun arrivalAt(run: Int, position: Int): Int =
-        runStart[run] + timetable.profileTimes[timetable.profileTimeStart[profileOf(run)] + 2 * position]
+        runStart[run] + timetable.time(timetable.profileTimeStart[profileOf(run)] + 2 * position)
 
     fun canBoard(run: Int, position: Int): Boolean =
-        timetable.pickup[timetable.profileFlagStart[profileOf(run)] + position].toInt() != 1
+        timetable.pickupType(timetable.profileFlagStart[profileOf(run)] + position) != 1
 
     fun canAlight(run: Int, position: Int): Boolean =
-        timetable.dropoff[timetable.profileFlagStart[profileOf(run)] + position].toInt() != 1
+        timetable.dropoffType(timetable.profileFlagStart[profileOf(run)] + position) != 1
 
     fun toInstant(seconds: Int): Instant = Instant.ofEpochSecond(midnight + seconds)
     fun secondsOf(instant: Instant): Int = (instant.epochSecond - midnight).toInt()

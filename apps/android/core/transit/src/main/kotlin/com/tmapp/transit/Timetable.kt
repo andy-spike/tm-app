@@ -79,11 +79,12 @@ class Timetable(
     val patternProfileStart: IntArray,
     /** Per profile: offset into [profileTimes] (2 values per stop: arrival, departure). */
     val profileTimeStart: IntArray,
-    val profileTimes: IntArray,
-    /** Per profile: offset into [pickup]/[dropoff] (1 value per stop). */
+    /** Offsets in seconds, stored unsigned 16-bit with [TIME_BIAS]; read with [time]. Halves the largest array. */
+    val profileTimes: CharArray,
+    /** Per profile: offset into [flags] (1 value per stop). */
     val profileFlagStart: IntArray,
-    val pickup: ByteArray,
-    val dropoff: ByteArray,
+    /** GTFS pickup type in bits 0–1, drop-off type in bits 2–3. */
+    val flags: ByteArray,
     /** Size P+1, trips of pattern p. */
     val patternTripStart: IntArray,
     val tripDeparture: IntArray,
@@ -100,6 +101,15 @@ class Timetable(
     val footSeconds: IntArray,
 ) {
     val patternCount: Int get() = patternRoute.size
+
+    fun time(i: Int): Int = profileTimes[i].code - TIME_BIAS
+    fun pickupType(i: Int): Int = flags[i].toInt() and 3
+    fun dropoffType(i: Int): Int = (flags[i].toInt() shr 2) and 3
+
+    companion object {
+        /** Allows first arrivals up to ~17 min before the first departure and trips up to ~17.9 h. */
+        const val TIME_BIAS = 1024
+    }
     val stopCount: Int get() = stops.size
 
     fun patternSize(p: Int): Int = patternStopStart[p + 1] - patternStopStart[p]
@@ -149,8 +159,8 @@ class Timetable(
             for (prof in patternProfileStart[p] until patternProfileStart[p + 1]) {
                 val t = profileTimeStart[prof]
                 for (i in 0 until patternSize(p)) {
-                    val arr = profileTimes[t + 2 * i]
-                    val dep = profileTimes[t + 2 * i + 1]
+                    val arr = time(t + 2 * i)
+                    val dep = time(t + 2 * i + 1)
                     val k = base + i
                     if (dep < minDepartureOffset[k]) minDepartureOffset[k] = dep
                     if (dep > maxDepartureOffset[k]) maxDepartureOffset[k] = dep

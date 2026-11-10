@@ -48,6 +48,8 @@ data class Itinerary(val legs: List<Leg>) {
     val transfers: Int get() = (rides.size - 1).coerceAtLeast(0)
     val walkMeters: Int get() = legs.sumOf { (it as? WalkLeg)?.meters ?: 0 }
     val signature: String get() = rides.joinToString("|") { "${it.pattern}:${it.boardPosition}@${it.departure.epochSecond}" }
+    /** Identifies the vehicles ridden, independent of where they are boarded. */
+    val vehicleKey: String get() = rides.joinToString("|") { "${it.route}@${it.arrival.epochSecond}" }
 }
 
 data class RouterOptions(
@@ -90,7 +92,13 @@ class Router(private val tt: Timetable, private val options: RouterOptions = Rou
             val transit = found.filter { it.rides.isNotEmpty() }
             if (transit.isEmpty()) return@repeat
             var added = false
-            for (it in transit) if (results.putIfAbsent(it.signature, it) == null) added = true
+            for (it in transit) {
+                // The same vehicles boarded at different stops are one option: keep the easier one.
+                val key = it.vehicleKey
+                val old = results[key]
+                if (old == null) { results[key] = it; added = true }
+                else if (it.arrival < old.arrival || (it.arrival == old.arrival && (it.departure > old.departure || (it.departure == old.departure && it.walkMeters < old.walkMeters)))) results[key] = it
+            }
             // Step past the best option to find the next departure (or earlier arrival for arrive-by).
             val next = if (reverse) transit.maxOf { day.secondsOf(it.arrival) } - 60 else transit.minOf { day.secondsOf(it.departure) } + 60
             if (!added && next == cursor) return@repeat

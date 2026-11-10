@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TM App</string>
+
+    <!-- Navigation -->
+    <string name="tab_nearby">Cerca</string>
+    <string name="tab_trip">Viaje</string>
+    <string name="tab_saved">Guardados</string>
+    <string name="tab_settings">Ajustes</string>
+    <string name="back">Volver</string>
+
+    <!-- Greetings -->
+    <string name="greeting_morning">Buenos días</string>
+    <string name="greeting_afternoon">Buenas tardes</string>
+    <string name="greeting_evening">Buenas noches</string>
+    <string name="where_to">¿Para dónde vas?</string>
+    <string name="search_hint">Ruta, estación o paradero</string>
+
+    <!-- Data honesty -->
+    <string name="scheduled">Horario programado</string>
+    <string name="scheduled_detail">Sin datos en vivo. Estos tiempos salen del horario publicado por TransMilenio.</string>
+    <string name="estimated">Estimado por frecuencia</string>
+    <string name="offline_ready">Funciona sin conexión</string>
+    <string name="loading_timetable">Preparando el horario…</string>
+    <string name="timetable_failed">No pudimos abrir el horario: %1$s</string>
+    <string name="retry">Reintentar</string>
+
+    <!-- Nearby -->
+    <string name="nearby_title">Cerca de ti</string>
+    <string name="nearby_center_title">En el centro de Bogotá</string>
+    <plurals name="nearby_count">
+        <item quantity="one">%1$d paradero a menos de %2$d m</item>
+        <item quantity="other">%1$d paraderos a menos de %2$d m</item>
+    </plurals>
+    <string name="nearby_empty">No hay paraderos a menos de 700 m. Busca un destino arriba.</string>
+    <string name="location_rationale_title">Ver paraderos cerca de ti</string>
+    <string name="location_rationale_body">Usamos tu ubicación solo en el teléfono, mientras la app está abierta. Nunca sale del teléfono.</string>
+    <string name="location_allow">Usar mi ubicación</string>
+    <string name="location_off">La ubicación del teléfono está apagada.</string>
+    <string name="my_location">Mi ubicación</string>
+    <string name="center_map">Centrar en mi ubicación</string>
+    <string name="meters_walk">%1$d m · %2$d min a pie</string>
+
+    <!-- Stop kinds -->
+    <string name="kind_station">Estación TransMilenio</string>
+    <string name="kind_stop">Paradero</string>
+    <string name="kind_platform">Vagón %1$s</string>
+
+    <!-- Stop screen -->
+    <string name="all_routes">Todas</string>
+    <string name="next_bus">Próximo bus</string>
+    <string name="later">Más tarde</string>
+    <string name="toward">Hacia %1$s</string>
+    <string name="no_departures">No hay salidas programadas en las próximas 3 horas.</string>
+    <string name="no_departures_route">Esta ruta no sale de aquí en las próximas 3 horas.</string>
+    <string name="save">Guardar</string>
+    <string name="saved">Guardado</string>
+    <string name="save_stop">Guardar paradero</string>
+    <string name="unsave_stop">Quitar de guardados</string>
+    <string name="save_route">Guardar ruta</string>
+    <string name="unsave_route">Quitar ruta de guardados</string>
+    <string name="announce_saved">%1$s guardado</string>
+    <string name="announce_unsaved">%1$s quitado de guardados</string>
+    <string name="directions_from_here">Salir desde aquí</string>
+    <string name="directions_to_here">Ir hasta aquí</string>
+    <string name="routes_here">Rutas que paran aquí</string>
+
+    <!-- Time -->
+    <string name="now">Ahora</string>
+    <string name="min_short">min</string>
+    <string name="in_minutes">en %1$d min</string>
+    <string name="minutes_duration">%1$d min</string>
+    <string name="hours_minutes_duration">%1$d h %2$d min</string>
+    <string name="departure_cd">%1$s hacia %2$s, %3$s</string>
+    <string name="leaves_in">Sale %1$s</string>
+
+    <!-- Route screen -->
+    <string name="first_bus">Primer bus</string>
+    <string name="last_bus">Último bus</string>
+    <string name="trips_today">Viajes hoy</string>
+    <string name="not_today">No opera hoy</string>
+    <plurals name="stop_count">
+        <item quantity="one">%d parada</item>
+        <item quantity="other">%d paradas</item>
+    </plurals>
+    <string name="system_troncal">TransMilenio troncal</string>
+    <string name="system_alimentador">Alimentador</string>
+    <string name="system_urbano">SITP zonal</string>
+    <string name="system_complementario">SITP complementaria</string>
+    <string name="system_especial">SITP especial</string>
+    <string name="system_dual">Dual</string>
+    <string name="system_cable">TransMiCable</string>
+    <string name="system_unknown">Ruta</string>
+
+    <!-- Search -->
+    <string name="search_title">Buscar</string>
+    <string name="search_from">¿Desde dónde?</string>
+    <string name="search_to">¿A dónde vas?</string>
+    <string name="recent">Recientes</string>
+    <string name="clear_recents">Borrar</string>
+    <string name="stations_and_stops">Estaciones y paraderos</string>
+    <string name="routes">Rutas</string>
+    <string name="no_results">Nada con \"%1$s\". Prueba con otro nombre o el código de la ruta.</string>
+    <string name="clear">Borrar</string>
+    <string name="search_tip">Escribe una estación, un paradero o una ruta como B10 o K635.</string>
+
+    <!-- Trip planner -->
+    <string name="trip_title">¿Cómo llego?</string>
+    <string name="from">Desde</string>
+    <string name="to">Hasta</string>
+    <string name="choose_origin">Elige el origen</string>
+    <string name="choose_destination">Elige el destino</string>
+    <string name="swap">Intercambiar origen y destino</string>
+    <string name="leave_now">Salir ahora</string>
+    <string name="depart_at">Salir a las %1$s</string>
+    <string name="arrive_by">Llegar a las %1$s</string>
+    <string name="depart_at_label">Salir a las…</string>
+    <string name="arrive_by_label">Llegar a las…</string>
+    <string name="today">Hoy</string>
+    <string name="tomorrow">Mañana</string>
+    <string name="done">Listo</string>
+    <string name="cancel">Cancelar</string>
+    <string name="trip_empty">Elige origen y destino para ver cómo llegar.</string>
+    <string name="trip_none">No encontramos cómo llegar en bus a esa hora. Prueba otra hora o un punto cercano.</string>
+    <string name="trip_need_location">Activa tu ubicación o elige un origen.</string>
+    <string name="walk_only">Solo caminando</string>
+    <string name="walk_minutes">%1$d min a pie</string>
+    <string name="transfers_none">Directo</string>
+    <plurals name="transfers">
+        <item quantity="one">%d transbordo</item>
+        <item quantity="other">%d transbordos</item>
+    </plurals>
+    <string name="leave_from">Sale de %1$s</string>
+    <string name="itinerary_cd">Sale a las %1$s, llega a las %2$s, %3$s, %4$s</string>
+    <string name="time_range">%1$s – %2$s</string>
+    <string name="options_scheduled">Opciones según el horario programado</string>
+
+    <!-- Itinerary -->
+    <string name="itinerary_title">Tu viaje</string>
+    <string name="walk_to">Camina a %1$s</string>
+    <string name="walk_detail">%1$d m · unos %2$d min</string>
+    <string name="board">Toma el %1$s hacia %2$s</string>
+    <plurals name="ride_stops">
+        <item quantity="one">%1$d parada · %2$s</item>
+        <item quantity="other">%1$d paradas · %2$s</item>
+    </plurals>
+    <string name="alight">Bájate en %1$s</string>
+    <string name="arrive">Llegas a %1$s</string>
+    <string name="destination">tu destino</string>
+    <string name="view_route">Ver ruta</string>
+    <string name="show_stops">Ver paradas</string>
+    <string name="hide_stops">Ocultar paradas</string>
+
+    <!-- Saved -->
+    <string name="saved_title">Guardados</string>
+    <string name="saved_stops">Paraderos</string>
+    <string name="saved_routes">Rutas</string>
+    <string name="saved_empty_title">Nada guardado todavía</string>
+    <string name="saved_empty_body">Toca la estrella en un paradero o una ruta para tenerlos aquí, con sus próximos buses.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Ajustes</string>
+    <string name="data_title">Horario</string>
+    <string name="data_valid">Válido del %1$s al %2$s</string>
+    <string name="data_version">Publicado el %1$s</string>
+    <string name="data_built_in">Incluido en la app</string>
+    <string name="data_downloaded">Descargado</string>
+    <string name="data_expired">Este horario ya venció. Actualiza para ver tiempos correctos.</string>
+    <string name="check_updates">Buscar actualización</string>
+    <string name="checking">Buscando…</string>
+    <string name="sync_up_to_date">Tienes el horario más reciente.</string>
+    <string name="sync_updated">Horario actualizado.</string>
+    <string name="sync_failed">No pudimos buscar actualizaciones. Revisa tu conexión.</string>
+    <string name="sync_auto">Se actualiza solo una vez al día con Wi-Fi.</string>
+    <string name="appearance">Apariencia</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Clara</string>
+    <string name="theme_dark">Oscura</string>
+    <string name="privacy_title">Privacidad</string>
+    <string name="privacy_body">Sin cuenta y sin publicidad. Tu ubicación se usa solo en el teléfono para mostrar paraderos cercanos y planear viajes. La app solo se conecta a internet para descargar horarios nuevos.</string>
+    <string name="about_title">Datos y créditos</string>
+    <string name="about_body">Horarios: datos abiertos GTFS de TransMilenio S.A. Mapa: © colaboradores de OpenStreetMap, Protomaps. Tipografía Geist (SIL OFL). No es una app oficial de TransMilenio ni del Distrito.</string>
+    <string name="version_label">Versión %1$s</string>
+</resources>

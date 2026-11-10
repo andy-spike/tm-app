@@ -2,14 +2,20 @@ package com.tmapp.transit
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.time.LocalDate
 import java.util.zip.Inflater
+import java.util.zip.InflaterInputStream
 
 class BundleFormatException(message: String) : Exception(message)
 
 /**
  * Decoder for the TMBG timetable bundle (revisions 1–3), see packages/core/BUNDLE_FORMAT.md.
- * Pure JVM; runs in a few hundred milliseconds on a phone and should be called off the main thread.
+ *
+ * Memory matters on phones (app heaps can be 192 MB), so the payload is decompressed as a stream,
+ * twice: a counting pass sizes every array exactly, then a filling pass writes into them. Nothing
+ * is ever held twice and the 28 MB inflated payload is never materialised.
  */
 object BundleDecoder {
     @Serializable
@@ -68,43 +74,40 @@ object BundleDecoder {
             throw BundleFormatException("Invalid bundle length")
         }
         val meta = json.decodeFromString<Meta>(String(bytes, 16, metaLength, Charsets.UTF_8))
-        val body = if (revision >= 2) inflate(bytes, metaEnd, payloadLength) else bytes.copyOfRange(metaEnd, bytes.size)
-        return Parser(body, meta).parse()
+        val open = {
+            val raw = ByteArrayInputStream(bytes, metaEnd, payloadLength)
+            Reader(if (revision >= 2) InflaterInputStream(raw, Inflater(true), 1 shl 16) else raw)
+        }
+        val sizes = open().use { Pass(it, meta, null).run() }.sizes ?: throw BundleFormatException("Counting pass failed")
+        return open().use { Pass(it, meta, Arrays(sizes)).run() }.result ?: throw BundleFormatException("Decoding pass failed")
     }
 
     private fun u32(b: ByteArray, at: Int): Int =
         (b[at].toInt() and 0xff) or ((b[at + 1].toInt() and 0xff) shl 8) or
             ((b[at + 2].toInt() and 0xff) shl 16) or ((b[at + 3].toInt() and 0xff) shl 24)
 
-    private fun inflate(bytes: ByteArray, offset: Int, length: Int): ByteArray {
-        val inflater = Inflater(true)
-        try {
-            inflater.setInput(bytes, offset, length)
-            var out = ByteArray(maxOf(length * 4, 1 shl 16))
-            var size = 0
-            while (!inflater.finished()) {
-                if (size == out.size) out = out.copyOf(out.size * 2)
-                val n = inflater.inflate(out, size, out.size - size)
-                if (n == 0 && (inflater.needsInput() || inflater.needsDictionary())) {
-                    throw BundleFormatException("Truncated payload")
-                }
-                size += n
-            }
-            return if (size == out.size) out else out.copyOf(size)
-        } finally {
-            inflater.end()
-        }
-    }
-
-    private class Parser(private val body: ByteArray, private val meta: Meta) {
+    /** Unbuffered streams are slow; this keeps its own buffer and decodes LEB128 directly. */
+    private class Reader(private val input: InputStream) : AutoCloseable {
+        private val buf = ByteArray(1 shl 16)
         private var pos = 0
+        private var len = 0
 
-        private fun get(): Int {
+        private fun fill(): Boolean {
+            len = input.read(buf)
+            pos = 0
+            return len > 0
+        }
+
+        fun byte(): Int {
+            if (pos >= len && !fill()) throw BundleFormatException("Truncated payload")
+            return buf[pos++].toInt() and 0xff
+        }
+
+        fun varint(): Int {
             var result = 0L
             var shift = 0
             while (true) {
-                if (pos >= body.size) throw BundleFormatException("Truncated varint")
-                val b = body[pos++].toInt() and 0xff
+                val b = byte()
                 result = result or ((b and 0x7f).toLong() shl shift)
                 if (b and 0x80 == 0) break
                 shift += 7
@@ -114,138 +117,172 @@ object BundleDecoder {
             return result.toInt()
         }
 
-        private fun count(): Int {
-            val n = get()
-            if (n > body.size - pos) throw BundleFormatException("Invalid count")
-            return n
+        fun skip(n: Int) { repeat(n) { byte() } }
+
+        fun atEnd(): Boolean = pos >= len && !fill()
+
+        override fun close() = input.close()
+    }
+
+    private class Sizes(
+        val patterns: Int,
+        val patternStops: Int,
+        val profiles: Int,
+        val times: Int,
+        val trips: Int,
+        val foot: Int,
+    )
+
+    private class Arrays(s: Sizes) {
+        val patternRoute = IntArray(s.patterns)
+        val patternStopStart = IntArray(s.patterns + 1)
+        val patternProfileStart = IntArray(s.patterns + 1)
+        val patternTripStart = IntArray(s.patterns + 1)
+        val patternStops = IntArray(s.patternStops)
+        val profileTimeStart = IntArray(s.profiles)
+        val profileFlagStart = IntArray(s.profiles)
+        val times = CharArray(s.times)
+        val flags = ByteArray(s.times / 2)
+        val tripDeparture = IntArray(s.trips)
+        val tripProfile = IntArray(s.trips)
+        val tripService = IntArray(s.trips)
+        val tripFreqEnd = IntArray(s.trips)
+        val tripHeadway = IntArray(s.trips)
+        val tripExact = BooleanArray(s.trips)
+        val footTo = IntArray(s.foot)
+        val footSeconds = IntArray(s.foot)
+    }
+
+    /** One walk over the payload. Without [out] it only counts; with it, it fills and builds. */
+    private class Pass(private val r: Reader, private val meta: Meta, private val out: Arrays?) {
+        var result: Timetable? = null
+
+        fun run(): Pass {
+            val stopCount = meta.stops.size
+            val patternCount = r.varint()
+            if (out != null && patternCount != out.patternRoute.size) throw BundleFormatException("Payload changed between passes")
+            var nStops = 0
+            var nProfiles = 0
+            var nTimes = 0
+            var nTrips = 0
+            for (p in 0 until patternCount) {
+                val route = r.varint()
+                if (route >= meta.routes.size) throw BundleFormatException("Invalid pattern route")
+                r.skip(r.varint()) // headsign: empty in this feed; riders read direction from the terminal.
+                val size = r.varint()
+                if (out != null) {
+                    out.patternRoute[p] = route
+                    out.patternStopStart[p] = nStops
+                }
+                repeat(size) {
+                    val s = r.varint()
+                    if (s >= stopCount) throw BundleFormatException("Invalid pattern stop")
+                    if (out != null) out.patternStops[nStops] = s
+                    nStops++
+                }
+                val profileCount = r.varint()
+                val firstProfile = nProfiles
+                if (out != null) out.patternProfileStart[p] = firstProfile
+                repeat(profileCount) {
+                    if (out != null) {
+                        out.profileTimeStart[nProfiles] = nTimes
+                        out.profileFlagStart[nProfiles] = nTimes / 2
+                    }
+                    var prev = 0
+                    for (k in 0 until size * 2) {
+                        val d = r.varint()
+                        prev += if (d and 1 == 1) -((d + 1) ushr 1) else d ushr 1
+                        if (out != null) {
+                            val stored = prev + Timetable.TIME_BIAS
+                            if (stored !in 0..0xffff) throw BundleFormatException("Trip offset $prev s out of range")
+                            out.times[nTimes + k] = stored.toChar()
+                        }
+                    }
+                    val flagBase = nTimes / 2
+                    for (k in 0 until size) {
+                        val pickup = r.varint()
+                        if (out != null) out.flags[flagBase + k] = (pickup and 3).toByte()
+                    }
+                    for (k in 0 until size) {
+                        val dropoff = r.varint()
+                        if (out != null) out.flags[flagBase + k] = (out.flags[flagBase + k].toInt() or ((dropoff and 3) shl 2)).toByte()
+                    }
+                    nTimes += size * 2
+                    nProfiles++
+                }
+                if (out != null) out.patternTripStart[p] = nTrips
+                var departure = 0
+                repeat(r.varint()) {
+                    departure += r.varint()
+                    val profile = r.varint()
+                    val service = r.varint()
+                    val hasFrequency = r.varint()
+                    if (profile >= profileCount || service >= meta.services.size) throw BundleFormatException("Invalid trip reference")
+                    var end = -1
+                    var headway = 0
+                    var exact = true
+                    if (hasFrequency != 0) {
+                        end = r.varint()
+                        headway = r.varint()
+                        exact = r.varint() != 0
+                        if (headway <= 0) throw BundleFormatException("Invalid headway")
+                    }
+                    if (out != null) {
+                        out.tripDeparture[nTrips] = departure
+                        out.tripProfile[nTrips] = firstProfile + profile
+                        out.tripService[nTrips] = service
+                        out.tripFreqEnd[nTrips] = end
+                        out.tripHeadway[nTrips] = headway
+                        out.tripExact[nTrips] = exact
+                    }
+                    nTrips++
+                }
+            }
+            if (r.varint() != stopCount) throw BundleFormatException("Invalid footpath count")
+            val footStart = IntArray(stopCount + 1)
+            var nFoot = 0
+            for (s in 0 until stopCount) {
+                footStart[s] = nFoot
+                repeat(r.varint()) {
+                    val to = r.varint()
+                    val seconds = r.varint()
+                    if (to >= stopCount) throw BundleFormatException("Invalid footpath")
+                    if (out != null) {
+                        out.footTo[nFoot] = to
+                        out.footSeconds[nFoot] = seconds
+                    }
+                    nFoot++
+                }
+            }
+            footStart[stopCount] = nFoot
+            if (!r.atEnd()) throw BundleFormatException("Invalid bundle tail")
+            if (out == null) {
+                sizes = Sizes(patternCount, nStops, nProfiles, nTimes, nTrips, nFoot)
+                return this
+            }
+            out.patternStopStart[patternCount] = nStops
+            out.patternProfileStart[patternCount] = nProfiles
+            out.patternTripStart[patternCount] = nTrips
+            result = build(out, footStart)
+            return this
         }
 
-        private fun string(): String {
-            val n = count()
-            val s = String(body, pos, n, Charsets.UTF_8)
-            pos += n
-            return s
-        }
+        var sizes: Sizes? = null
 
-        fun parse(): Timetable {
+        private fun build(a: Arrays, footStart: IntArray): Timetable {
             val stopIds = HashMap<String, Int>(meta.stops.size * 2)
             meta.stops.forEachIndexed { i, s -> stopIds[s.id] = i }
+            val spaces = Regex("\\s{2,}")
             val stops = meta.stops.mapIndexed { i, s ->
-                Stop(
-                    index = i,
-                    id = s.id,
-                    name = s.name.replace(Regex("\\s{2,}"), " ").trim(),
-                    lat = s.lat,
-                    lon = s.lon,
-                    isStation = s.kind == "station",
-                    parent = s.parentStationId?.let { stopIds[it] } ?: -1,
-                    code = s.code,
-                )
+                Stop(i, s.id, s.name.replace(spaces, " ").trim(), s.lat, s.lon, s.kind == "station", s.parentStationId?.let { stopIds[it] } ?: -1, s.code)
             }
             val routes = meta.routes.mapIndexed { i, r ->
                 RouteCodes.describe(i, r.id, r.shortName, r.longName, SystemKind.parse(r.system), r.agencyId)
             }
             val services = meta.services.map { s ->
                 if (s.weekdays.size != 7) throw BundleFormatException("Invalid service weekdays")
-                Service(
-                    start = LocalDate.parse(s.start),
-                    end = LocalDate.parse(s.end),
-                    weekdays = BooleanArray(7) { s.weekdays[it] == 1 },
-                    exceptions = s.exceptions.mapKeys { LocalDate.parse(it.key) },
-                )
+                Service(LocalDate.parse(s.start), LocalDate.parse(s.end), BooleanArray(7) { s.weekdays[it] == 1 }, s.exceptions.mapKeys { LocalDate.parse(it.key) })
             }
-            val stopCount = stops.size
-            val patternCount = count()
-            val patternRoute = IntArray(patternCount)
-            val patternStopStart = IntArray(patternCount + 1)
-            val patternProfileStart = IntArray(patternCount + 1)
-            val patternTripStart = IntArray(patternCount + 1)
-            val patternStops = IntList(1 shl 16)
-            val profileTimeStart = IntList(1 shl 16)
-            val profileFlagStart = IntList(1 shl 16)
-            val times = IntList(1 shl 22)
-            val pickup = ByteList(1 shl 21)
-            val dropoff = ByteList(1 shl 21)
-            val tripDeparture = IntList(1 shl 18)
-            val tripProfile = IntList(1 shl 18)
-            val tripService = IntList(1 shl 18)
-            val tripFreqEnd = IntList(1 shl 18)
-            val tripHeadway = IntList(1 shl 18)
-            val tripExact = ByteList(1 shl 18)
-            for (p in 0 until patternCount) {
-                val route = get()
-                if (route >= routes.size) throw BundleFormatException("Invalid pattern route")
-                patternRoute[p] = route
-                string() // headsign: empty in the current feed; direction comes from the terminal stop.
-                val size = count()
-                patternStopStart[p] = patternStops.size
-                repeat(size) {
-                    val s = get()
-                    if (s >= stopCount) throw BundleFormatException("Invalid pattern stop")
-                    patternStops.add(s)
-                }
-                val profileCount = count()
-                val firstProfile = profileTimeStart.size
-                patternProfileStart[p] = firstProfile
-                repeat(profileCount) {
-                    profileTimeStart.add(times.size)
-                    profileFlagStart.add(pickup.size)
-                    var prev = 0
-                    repeat(size * 2) {
-                        val d = get()
-                        prev += if (d and 1 == 1) -((d + 1) ushr 1) else d ushr 1
-                        times.add(prev)
-                    }
-                    repeat(size) { pickup.add(get().toByte()) }
-                    repeat(size) { dropoff.add(get().toByte()) }
-                }
-                patternTripStart[p] = tripDeparture.size
-                var departure = 0
-                repeat(count()) {
-                    departure += get()
-                    val profile = get()
-                    val service = get()
-                    val hasFrequency = get()
-                    if (profile >= profileCount || service >= services.size) {
-                        throw BundleFormatException("Invalid trip reference")
-                    }
-                    tripDeparture.add(departure)
-                    tripProfile.add(firstProfile + profile)
-                    tripService.add(service)
-                    if (hasFrequency != 0) {
-                        val end = get()
-                        val headway = get()
-                        val exact = get()
-                        if (headway <= 0) throw BundleFormatException("Invalid headway")
-                        tripFreqEnd.add(end)
-                        tripHeadway.add(headway)
-                        tripExact.add(if (exact != 0) 1 else 0)
-                    } else {
-                        tripFreqEnd.add(-1)
-                        tripHeadway.add(0)
-                        tripExact.add(1)
-                    }
-                }
-            }
-            patternStopStart[patternCount] = patternStops.size
-            patternProfileStart[patternCount] = profileTimeStart.size
-            patternTripStart[patternCount] = tripDeparture.size
-            val footLists = count()
-            if (footLists != stopCount) throw BundleFormatException("Invalid footpath count")
-            val footStart = IntArray(stopCount + 1)
-            val footTo = IntList(1 shl 17)
-            val footSeconds = IntList(1 shl 17)
-            for (s in 0 until stopCount) {
-                footStart[s] = footTo.size
-                repeat(count()) {
-                    val to = get()
-                    if (to >= stopCount) throw BundleFormatException("Invalid footpath")
-                    footTo.add(to)
-                    footSeconds.add(get())
-                }
-            }
-            footStart[stopCount] = footTo.size
-            if (pos != body.size) throw BundleFormatException("Invalid bundle tail")
             return Timetable(
                 version = meta.version,
                 builtAt = meta.builtAt,
@@ -254,54 +291,25 @@ object BundleDecoder {
                 stops = stops,
                 routes = routes,
                 services = services,
-                patternRoute = patternRoute,
-                patternStopStart = patternStopStart,
-                patternStops = patternStops.toArray(),
-                patternProfileStart = patternProfileStart,
-                profileTimeStart = profileTimeStart.toArray(),
-                profileTimes = times.toArray(),
-                profileFlagStart = profileFlagStart.toArray(),
-                pickup = pickup.toArray(),
-                dropoff = dropoff.toArray(),
-                patternTripStart = patternTripStart,
-                tripDeparture = tripDeparture.toArray(),
-                tripProfile = tripProfile.toArray(),
-                tripService = tripService.toArray(),
-                tripFrequencyEnd = tripFreqEnd.toArray(),
-                tripHeadway = tripHeadway.toArray(),
-                tripExact = BooleanArray(tripExact.size) { tripExact[it] != 0.toByte() },
+                patternRoute = a.patternRoute,
+                patternStopStart = a.patternStopStart,
+                patternStops = a.patternStops,
+                patternProfileStart = a.patternProfileStart,
+                profileTimeStart = a.profileTimeStart,
+                profileTimes = a.times,
+                profileFlagStart = a.profileFlagStart,
+                flags = a.flags,
+                patternTripStart = a.patternTripStart,
+                tripDeparture = a.tripDeparture,
+                tripProfile = a.tripProfile,
+                tripService = a.tripService,
+                tripFrequencyEnd = a.tripFreqEnd,
+                tripHeadway = a.tripHeadway,
+                tripExact = a.tripExact,
                 footStart = footStart,
-                footTo = footTo.toArray(),
-                footSeconds = footSeconds.toArray(),
+                footTo = a.footTo,
+                footSeconds = a.footSeconds,
             )
         }
     }
-}
-
-internal class IntList(capacity: Int) {
-    private var data = IntArray(capacity)
-    var size = 0
-        private set
-
-    fun add(v: Int) {
-        if (size == data.size) data = data.copyOf(data.size * 2)
-        data[size++] = v
-    }
-
-    operator fun get(i: Int): Int = data[i]
-    fun toArray(): IntArray = data.copyOf(size)
-}
-
-internal class ByteList(capacity: Int) {
-    private var data = ByteArray(capacity)
-    var size = 0
-        private set
-
-    fun add(v: Byte) {
-        if (size == data.size) data = data.copyOf(data.size * 2)
-        data[size++] = v
-    }
-
-    operator fun get(i: Int): Byte = data[i]
-    fun toArray(): ByteArray = data.copyOf(size)
 }
