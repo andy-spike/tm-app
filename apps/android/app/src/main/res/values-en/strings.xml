@@ -94,6 +94,7 @@
     <string name="trip_empty">Choose a start and destination to see how to get there.</string>
     <string name="trip_none">We couldn\'t find a bus trip at that time. Try another time or a nearby point.</string>
     <string name="trip_need_location">Turn on location or choose a start.</string>
+    <string name="trip_no_fix">We couldn\'t find your location. Check that it is on, or choose a start.</string>
     <string name="walk_only">Walk only</string>
     <string name="transfers_none">Direct</string>
     <plurals name="transfers">

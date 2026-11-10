@@ -71,6 +71,7 @@ import com.tmapp.android.ui.Navigator
 import com.tmapp.android.ui.SavedStopCard
 import com.tmapp.android.ui.SearchKey
 import com.tmapp.android.ui.StopKey
+import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Eyebrow
 import com.tmapp.android.ui.components.Hairline
 import com.tmapp.android.ui.components.RouteBadge
@@ -115,7 +116,9 @@ fun HomeScreen(nav: Navigator) {
     }
     val sheet = rememberBottomSheetScaffoldState(rememberStandardBottomSheetState(skipHiddenState = true))
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val peek = maxHeight * 0.56f
+        // Larger text needs more of the sheet visible so the search field stays in view.
+        val scale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        val peek = maxHeight * (if (scale > 1.3f) 0.72f else 0.56f)
         BottomSheetScaffold(
             scaffoldState = sheet,
             sheetPeekHeight = peek,
@@ -162,10 +165,16 @@ fun HomeScreen(nav: Navigator) {
                     shadowElevation = 2.dp,
                     modifier = Modifier.statusBarsPadding().padding(Spacing.md),
                 ) {
-                    Row(Modifier.padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                        ScheduledTag()
-                        Text(" · " + stringResource(R.string.offline_ready), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    CapFontScale(1.3f) { Row(Modifier.padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(LocalExtra.current.scheduled))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            stringResource(R.string.scheduled) + " · " + stringResource(R.string.offline_ready),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                        )
+                    } }
                 }
                 SmallFloatingActionButton(
                     onClick = {
@@ -201,7 +210,7 @@ private fun HomeSheet(
             Column(Modifier.padding(horizontal = Spacing.gutter)) {
                 Eyebrow(stringResource(when (hour) { in 5..11 -> R.string.greeting_morning; in 12..18 -> R.string.greeting_afternoon; else -> R.string.greeting_evening }))
                 Spacer(Modifier.height(6.dp))
-                Text(stringResource(R.string.where_to), style = MaterialTheme.typography.displaySmall)
+                CapFontScale { Text(stringResource(R.string.where_to), style = MaterialTheme.typography.displaySmall) }
                 Spacer(Modifier.height(Spacing.lg))
                 SearchPill(onSearch)
             }
@@ -253,7 +262,7 @@ fun SearchPill(onClick: () -> Unit, label: String = stringResource(R.string.sear
     ) {
         Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.width(Spacing.md))
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -291,8 +300,10 @@ private fun SavedCard(card: SavedStopCard, now: java.time.Instant, onClick: () -
             Text(stringResource(R.string.no_departures), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
         }
         card.departures.forEach { d ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                RouteBadge(data.timetable.routes[d.route])
+            val route = data.timetable.routes[d.route]
+            val spoken = stringResource(R.string.departure_cd, com.tmapp.transit.RouteCodes.sayable(route.code), d.destination, rememberTimeFormat().relative(now, d.time))
+            Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).clearAndSetSemantics { contentDescription = spoken }, verticalAlignment = Alignment.CenterVertically) {
+                RouteBadge(route)
                 Spacer(Modifier.width(Spacing.sm))
                 Text(d.destination, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Text(rememberTimeFormat().compact(now, d.time), style = MaterialTheme.typography.labelLarge)

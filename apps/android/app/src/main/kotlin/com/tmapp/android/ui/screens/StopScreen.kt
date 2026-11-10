@@ -55,6 +55,7 @@ import com.tmapp.android.ui.RouteKey
 import com.tmapp.android.ui.StopViewModel
 import com.tmapp.android.ui.TripKey
 import com.tmapp.android.ui.TripViewModel
+import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Eyebrow
 import com.tmapp.android.ui.components.Hairline
 import com.tmapp.android.ui.components.Minutes
@@ -131,7 +132,7 @@ fun StopScreen(nav: Navigator, stopId: String, trip: TripViewModel) {
                 StopTile(stop, size = 48.dp)
                 Spacer(Modifier.width(Spacing.md))
                 Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
-                    Text(stop.name, style = MaterialTheme.typography.headlineMedium)
+                    CapFontScale { Text(stop.name, style = MaterialTheme.typography.headlineMedium) }
                     val code = stop.code?.takeIf { !stop.isStation && !it.endsWith("_TM") && !it.startsWith("PA") }
                     Text(listOfNotNull(stopKind(stop), code).joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -236,7 +237,7 @@ private fun NextBus(d: Departure, now: java.time.Instant, onClick: () -> Unit) {
                 Spacer(Modifier.height(Spacing.md))
                 ScheduledTag(estimated = d.estimated)
             }
-            Minutes(now, d.time, large = true)
+            CapFontScale { Minutes(now, d.time, large = true) }
         }
     }
 }

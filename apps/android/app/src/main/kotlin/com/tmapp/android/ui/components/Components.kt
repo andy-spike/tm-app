@@ -212,9 +212,11 @@ fun Eyebrow(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, subtitle: String? = null) {
-    Column(modifier.semantics(mergeDescendants = true) { heading() }) {
-        Text(text, style = MaterialTheme.typography.titleLarge)
-        if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    CapFontScale {
+        Column(modifier.semantics(mergeDescendants = true) { heading() }) {
+            Text(text, style = MaterialTheme.typography.titleLarge)
+            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -312,4 +314,18 @@ fun rememberTimeFormat(): TimeFormat {
     val context = LocalContext.current
     val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     return remember(context, locale) { TimeFormat(context) }
+}
+
+/**
+ * Already-large headings and map chrome stop growing past [max]× so the screen's actual answers
+ * (search, times, lists) stay in view at the largest system text sizes. Body text scales fully.
+ */
+@Composable
+fun CapFontScale(max: Float = 1.5f, content: @Composable () -> Unit) {
+    val d = androidx.compose.ui.platform.LocalDensity.current
+    if (d.fontScale <= max) return content()
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, max),
+        content = content,
+    )
 }

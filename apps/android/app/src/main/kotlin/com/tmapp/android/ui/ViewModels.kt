@@ -230,6 +230,8 @@ sealed interface PlanState {
     data object Idle : PlanState
     data object Loading : PlanState
     data object NeedLocation : PlanState
+    /** Permission granted but no fix arrived in time (indoors, location off). */
+    data object NoFix : PlanState
     data class Done(val options: List<Itinerary>, val request: TripRequest) : PlanState
 }
 
@@ -250,7 +252,7 @@ class TripViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(TripState(from = if (locations.hasPermission()) Endpoint.MyLocation else null))
     val state = _state.asStateFlow()
-    private var lastFix: Coordinates? = null
+    private val lastFix: Coordinates? get() = locations.last.value
     private var locationJob: Job? = null
     private var planJob: Job? = null
 
@@ -266,10 +268,10 @@ class TripViewModel @Inject constructor(
     private fun watchLocation() {
         if (locationJob != null || !locations.hasPermission()) return
         locationJob = viewModelScope.launch {
-            locations.updates().collect { fix ->
-                val first = lastFix == null
-                lastFix = fix
-                if (first && usesLocation()) replan()
+            var hadFix = lastFix != null
+            locations.updates().collect {
+                if (!hadFix && usesLocation() && _state.value.plan !is PlanState.Done) replan()
+                hadFix = true
             }
         }
     }
@@ -305,7 +307,12 @@ class TripViewModel @Inject constructor(
         val fromPlace = resolve(from)
         val toPlace = resolve(to)
         if (fromPlace == null || toPlace == null) {
-            _state.value = s.copy(plan = if (locations.hasPermission()) PlanState.Loading else PlanState.NeedLocation)
+            if (!locations.hasPermission()) { _state.value = s.copy(plan = PlanState.NeedLocation); return }
+            _state.value = s.copy(plan = PlanState.Loading)
+            // Never wait forever for a fix: ask once, then say so.
+            planJob = viewModelScope.launch {
+                if (locations.current() != null) replan() else _state.value = _state.value.copy(plan = PlanState.NoFix)
+            }
             return
         }
         val time = if (s.mode == TimeMode.NOW) Instant.now() else s.date.atTime(s.time).atZone(BOGOTA).toInstant()

@@ -68,6 +68,7 @@ import com.tmapp.android.ui.PlanState
 import com.tmapp.android.ui.SearchKey
 import com.tmapp.android.ui.TimeMode
 import com.tmapp.android.ui.TripViewModel
+import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Bone
 import com.tmapp.android.ui.components.EmptyState
 import com.tmapp.android.ui.components.Eyebrow
@@ -96,11 +97,13 @@ fun TripScreen(nav: Navigator, vm: TripViewModel) {
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.onPermissionResult() }
     LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         item("title") {
-            Text(
-                stringResource(R.string.trip_title),
-                style = MaterialTheme.typography.displaySmall,
-                modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() },
-            )
+            CapFontScale {
+                Text(
+                    stringResource(R.string.trip_title),
+                    style = MaterialTheme.typography.displaySmall,
+                    modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() },
+                )
+            }
         }
         item("endpoints") {
             Endpoints(
@@ -136,6 +139,16 @@ fun TripScreen(nav: Navigator, vm: TripViewModel) {
                 }
             }
             PlanState.Loading -> items(3, key = { "bone$it" }) { OptionSkeleton() }
+            PlanState.NoFix -> item("nofix") {
+                Column(Modifier.gutter().padding(top = Spacing.xl)) {
+                    Text(stringResource(R.string.trip_no_fix), style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(Spacing.md))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        FilledTonalButton(onClick = vm::replan) { Text(stringResource(R.string.retry)) }
+                        androidx.compose.material3.OutlinedButton(onClick = { nav.open(SearchKey(SearchMode.FROM)) }) { Text(stringResource(R.string.choose_origin)) }
+                    }
+                }
+            }
             is PlanState.Done -> {
                 if (plan.options.isEmpty()) {
                     item("none") { EmptyState(stringResource(R.string.trip_title), stringResource(R.string.trip_none)) }

@@ -115,6 +115,7 @@
     <string name="trip_empty">Elige origen y destino para ver cómo llegar.</string>
     <string name="trip_none">No encontramos cómo llegar en bus a esa hora. Prueba otra hora o un punto cercano.</string>
     <string name="trip_need_location">Activa tu ubicación o elige un origen.</string>
+    <string name="trip_no_fix">No pudimos encontrar tu ubicación. Revisa que esté activada o elige un origen.</string>
     <string name="walk_only">Solo caminando</string>
     <string name="transfers_none">Directo</string>
     <plurals name="transfers">

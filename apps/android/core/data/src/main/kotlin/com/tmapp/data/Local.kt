@@ -141,14 +141,17 @@ class LocationClient @Inject constructor(private val context: Context) {
 
     fun isEnabled(): Boolean = LocationManagerCompat.isLocationEnabled(manager)
 
+    private val _last = kotlinx.coroutines.flow.MutableStateFlow<Coordinates?>(null)
+    /** The freshest fix any screen has seen, shared so every screen starts from it. */
+    val last: kotlinx.coroutines.flow.StateFlow<Coordinates?> = _last
+
     /** Last known fix first, then live updates while collected. Empty without permission. */
     @SuppressLint("MissingPermission")
     fun updates(): Flow<Coordinates> = callbackFlow {
         if (!hasPermission()) { close(); return@callbackFlow }
         val providers = manager.getProviders(true).filter { it != LocationManager.PASSIVE_PROVIDER }
-        providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
-            .maxByOrNull { it.time }?.let { trySend(it.toCoordinates()) }
-        val listener = LocationListenerCompat { location -> trySend(location.toCoordinates()) }
+        (_last.value ?: lastKnown(providers))?.let { _last.value = it; trySend(it) }
+        val listener = LocationListenerCompat { location -> location.toCoordinates().also { _last.value = it; trySend(it) } }
         val request = LocationRequestCompat.Builder(5_000).setMinUpdateDistanceMeters(15f)
             .setQuality(LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY).build()
         for (p in providers) {
@@ -156,6 +159,34 @@ class LocationClient @Inject constructor(private val context: Context) {
         }
         awaitClose { LocationManagerCompat.removeUpdates(manager, listener) }
     }
+
+    /**
+     * A single fix for one-off needs such as planning from "Mi ubicación": the shared fix if any,
+     * else the platform's current location, else null after [timeoutMs].
+     */
+    @SuppressLint("MissingPermission")
+    suspend fun current(timeoutMs: Long = 8_000): Coordinates? {
+        _last.value?.let { return it }
+        if (!hasPermission()) return null
+        val providers = manager.getProviders(true).filter { it != LocationManager.PASSIVE_PROVIDER }
+        lastKnown(providers)?.let { _last.value = it; return it }
+        val provider = providers.firstOrNull { it == LocationManager.GPS_PROVIDER } ?: providers.firstOrNull() ?: return null
+        return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+            kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                val cancel = androidx.core.os.CancellationSignal()
+                cont.invokeOnCancellation { cancel.cancel() }
+                LocationManagerCompat.getCurrentLocation(manager, provider, cancel, ContextCompat.getMainExecutor(context)) { loc ->
+                    val c = loc?.toCoordinates()
+                    if (c != null) _last.value = c
+                    if (cont.isActive) cont.resumeWith(Result.success(c))
+                }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun lastKnown(providers: List<String>): Coordinates? =
+        providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.time }?.toCoordinates()
 
     private fun Location.toCoordinates() = Coordinates(latitude, longitude, accuracy)
 }

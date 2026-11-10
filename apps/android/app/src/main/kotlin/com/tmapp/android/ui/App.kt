@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -136,6 +137,16 @@ fun TmApp() {
 
 @Composable
 private fun TabBar(current: NavKey, nav: Navigator) {
+    // Tab labels are single words; capping their scale keeps all four readable at the largest
+    // system text sizes instead of wrapping into fragments. Content elsewhere scales fully.
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides androidx.compose.ui.unit.Density(density.density, density.fontScale.coerceAtMost(1.3f))) {
+        TabBarContent(current, nav)
+    }
+}
+
+@Composable
+private fun TabBarContent(current: NavKey, nav: Navigator) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = androidx.compose.ui.unit.Dp(0f)) {
         TabItem(current == NearbyKey, Icons.Rounded.NearMe, Icons.Outlined.NearMe, R.string.tab_nearby) { nav.tab(NearbyKey) }
         TabItem(current == TripKey, Icons.Rounded.Directions, Icons.Outlined.Directions, R.string.tab_trip) { nav.tab(TripKey) }
@@ -150,7 +161,7 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(selected: Boolea
         selected = selected,
         onClick = onClick,
         icon = { Icon(if (selected) on else off, contentDescription = null) },
-        label = { Text(stringResource(label)) },
+        label = { Text(stringResource(label), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
         colors = NavigationBarItemDefaults.colors(
             selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
             indicatorColor = MaterialTheme.colorScheme.secondaryContainer,

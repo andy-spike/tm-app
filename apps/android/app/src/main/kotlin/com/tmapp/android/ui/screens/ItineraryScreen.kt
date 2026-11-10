@@ -29,6 +29,7 @@ import com.tmapp.android.ui.Navigator
 import com.tmapp.android.ui.RouteKey
 import com.tmapp.android.ui.StopKey
 import com.tmapp.android.ui.TripViewModel
+import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Eyebrow
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.ScheduledTag
@@ -99,10 +100,10 @@ fun ItineraryScreen(nav: Navigator, trip: TripViewModel, index: Int) {
             Column(Modifier.gutter().semantics(mergeDescendants = true) { heading() }) {
                 Eyebrow(stringResource(R.string.itinerary_title))
                 Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
+                CapFontScale { Row(verticalAlignment = Alignment.Bottom) {
                     Text(stringResource(R.string.time_range, tf.clock(itinerary.departure), tf.clock(itinerary.arrival)), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
                     Text(durationText(itinerary.duration), style = MaterialTheme.typography.headlineSmall)
-                }
+                } }
                 Text(
                     if (itinerary.rides.isEmpty()) stringResource(R.string.walk_only) else transfersText(itinerary.transfers),
                     style = MaterialTheme.typography.bodyMedium,

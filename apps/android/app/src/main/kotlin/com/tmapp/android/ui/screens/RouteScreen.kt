@@ -47,6 +47,7 @@ import com.tmapp.android.ui.LocalTransit
 import com.tmapp.android.ui.Navigator
 import com.tmapp.android.ui.RouteViewModel
 import com.tmapp.android.ui.StopKey
+import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Eyebrow
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.ScheduledTag
@@ -113,7 +114,7 @@ fun RouteScreen(nav: Navigator, routeId: String) {
             Column(Modifier.gutter().semantics(mergeDescendants = true) { heading() }) {
                 RouteBadge(route, large = true)
                 Spacer(Modifier.height(Spacing.md))
-                Text(direction?.destination ?: route.longName, style = MaterialTheme.typography.headlineLarge)
+                CapFontScale { Text(direction?.destination ?: route.longName, style = MaterialTheme.typography.headlineLarge) }
                 Text(systemLabel(route.system) + (route.longName.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

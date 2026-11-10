@@ -32,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -51,6 +53,7 @@ import com.tmapp.android.ui.SavedStopCard
 import com.tmapp.android.ui.SavedViewModel
 import com.tmapp.android.ui.SettingsViewModel
 import com.tmapp.android.ui.StopKey
+import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.EmptyState
 import com.tmapp.android.ui.components.Eyebrow
 import com.tmapp.android.ui.components.Hairline
@@ -80,7 +83,7 @@ fun SavedScreen(nav: Navigator) {
     val now = rememberNow()
     LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         item("title") {
-            Text(stringResource(R.string.saved_title), style = MaterialTheme.typography.displaySmall, modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() })
+            CapFontScale { Text(stringResource(R.string.saved_title), style = MaterialTheme.typography.displaySmall, modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() }) }
         }
         if (!state.loaded || data == null) {
             item("loading") { SkeletonRows(3, Modifier.padding(top = Spacing.xl)) }
@@ -127,8 +130,10 @@ private fun SavedStopRow(card: SavedStopCard, now: java.time.Instant, onClick: (
         card.departures.forEachIndexed { i, d ->
             if (i == 0) Spacer(Modifier.height(Spacing.sm))
             Hairline(Modifier.padding(vertical = 6.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RouteBadge(data.timetable.routes[d.route])
+            val route = data.timetable.routes[d.route]
+            val spoken = stringResource(R.string.departure_cd, com.tmapp.transit.RouteCodes.sayable(route.code), d.destination, com.tmapp.android.ui.components.rememberTimeFormat().relative(now, d.time))
+            Row(Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken }, verticalAlignment = Alignment.CenterVertically) {
+                RouteBadge(route)
                 Spacer(Modifier.width(Spacing.sm))
                 Text(d.destination, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Minutes(now, d.time, large = false)
@@ -147,7 +152,7 @@ fun SettingsScreen() {
     val dates = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         item("title") {
-            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.displaySmall, modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() })
+            CapFontScale { Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.displaySmall, modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() }) }
         }
         item("data") {
             Card(Modifier.padding(top = Spacing.xl)) {
