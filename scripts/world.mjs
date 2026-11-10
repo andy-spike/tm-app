@@ -69,6 +69,8 @@ try {
       writeFileSync(path, config.replace(/^  port: \d+$/m, `  port: ${state.motis}`));
       run(resolve(root, 'services/motis/bin/motis'), ['server'], { cwd: resolve(root, 'services/motis'), env });
     } else if (command === 'bundle') run('pnpm', ['--filter', '@tm/pipeline', 'serve'], { env });
+    // The Cloudflare Worker replaces the static bundle server, so it reuses the bundle port.
+    else if (command === 'api') run('pnpm', ['--filter', '@tm/api', 'dev', '--port', String(state.bundle), '--ip', '0.0.0.0'], { env });
     else if (command === 'exec') {
       const [bin, ...args] = process.argv.slice(3);
       if (!bin) throw new Error('Usage: pnpm world:exec <command> [arguments]');

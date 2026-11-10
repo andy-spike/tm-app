@@ -2,9 +2,11 @@ packages:
   - apps/*
   - packages/*
   - services/pipeline
+  - services/api
 allowBuilds:
   unrs-resolver: true
   esbuild: true
+  workerd: true
 minimumReleaseAgeExclude:
   - '@expo/cli@58.1.14'
   - babel-preset-expo@58.0.19

@@ -23,6 +23,8 @@ export type SystemKind =
 export interface Route {
   id: string;
   shortName: string;
+  /** GTFS route_long_name; paired SITP routes read "K635 Origin || H635 Destination". */
+  longName?: string;
   color: string;
   agencyId: string;
   system: SystemKind;

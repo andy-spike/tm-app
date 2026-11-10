@@ -21,3 +21,6 @@ services/pipeline/.tmp/
 # Worktrunk can create checkouts beneath this repository
 .worktrees/
 .wortrees/
+
+# Wrangler build output
+.wrangler/

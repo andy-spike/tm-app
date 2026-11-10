@@ -1,0 +1,17 @@
+{
+  "name": "@tm/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --persist-to ../../.world/wrangler",
+    "db:migrate": "wrangler d1 migrations apply tm --local --persist-to ../../.world/wrangler",
+    "publish:bundle": "node scripts/publish-bundle.mjs",
+    "lint": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types src/*.test.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261102.1",
+    "typescript": "~6.0.3",
+    "wrangler": "4.156.2"
+  }
+}

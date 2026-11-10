@@ -15,13 +15,17 @@
     "bundle:build": "pnpm --filter @tm/pipeline build",
     "bundle:serve": "node scripts/world.mjs bundle",
     "bundle:compare": "pnpm --filter @tm/pipeline compare",
-    "test": "pnpm --filter @tm/core test",
+    "test": "pnpm --filter @tm/core test && pnpm --filter @tm/api test",
     "bundle:maps": "pnpm --filter @tm/pipeline exec tsx src/maps.ts",
     "worktree:setup": "node scripts/world.mjs setup",
     "world:status": "node scripts/world.mjs status",
     "world:exec": "node scripts/world.mjs exec",
     "check": "pnpm test:world && pnpm typecheck && pnpm lint && pnpm test",
     "test:world": "node --test scripts/world.test.mjs",
-    "android:emulators:setup": "bash scripts/setup-emulators.sh"
+    "android:emulators:setup": "bash scripts/setup-emulators.sh",
+    "api": "node scripts/world.mjs api",
+    "api:publish": "pnpm --filter @tm/api publish:bundle",
+    "android:native": "cd apps/android && ./gradlew :app:installDebug",
+    "android:check": "cd apps/android && ./gradlew check"
   }
 }

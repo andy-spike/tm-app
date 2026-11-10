@@ -68,6 +68,60 @@ const seconds = (s: string) => {
   if (!Number.isFinite(n) || n < 0) throw new Error(`Invalid GTFS time: ${s}`);
   return n;
 };
+type Point = { lat: number; lon: number };
+/** Douglas-Peucker in a local equirectangular projection; tolerance in meters. */
+function simplify(points: Point[], tolerance: number): Point[] {
+  if (points.length < 3) return points;
+  const k = Math.cos((points[0].lat * Math.PI) / 180) * 111320;
+  const xy = points.map((p) => [p.lon * k, p.lat * 110540]);
+  const keep = new Uint8Array(points.length);
+  keep[0] = keep[points.length - 1] = 1;
+  const stack: [number, number][] = [[0, points.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    const [ax, ay] = xy[a],
+      [bx, by] = xy[b];
+    const dx = bx - ax,
+      dy = by - ay,
+      len = Math.hypot(dx, dy) || 1;
+    let worst = -1,
+      index = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs(dy * xy[i][0] - dx * xy[i][1] + bx * ay - by * ax) / len;
+      if (d > worst) {
+        worst = d;
+        index = i;
+      }
+    }
+    if (worst > tolerance) {
+      keep[index] = 1;
+      stack.push([a, index], [index, b]);
+    }
+  }
+  return points.filter((_, i) => keep[i]);
+}
+function encodePolyline(points: Point[]): string {
+  let out = "",
+    lat = 0,
+    lon = 0;
+  const put = (v: number) => {
+    let n = v < 0 ? ~(v << 1) : v << 1;
+    while (n >= 0x20) {
+      out += String.fromCharCode((0x20 | (n & 0x1f)) + 63);
+      n >>= 5;
+    }
+    out += String.fromCharCode(n + 63);
+  };
+  for (const p of points) {
+    const a = Math.round(p.lat * 1e5),
+      b = Math.round(p.lon * 1e5);
+    put(a - lat);
+    put(b - lon);
+    lat = a;
+    lon = b;
+  }
+  return out;
+}
 const required = <T>(map: Map<string, T>, id: string, kind: string): T => {
   const value = map.get(id);
   if (value === undefined) throw new Error(`Missing ${kind} ${id}`);
@@ -94,6 +148,7 @@ try {
     return {
       id: `tm_${r.route_id}`,
       shortName: r.route_short_name,
+      longName: r.route_long_name || undefined,
       color: `#${r.route_color || "666666"}`,
       agencyId: r.agency_id,
       system: systemKind(r.agency_id),
@@ -162,6 +217,7 @@ try {
         route: required(routeIds, t.route_id, "route"),
         service: required(serviceIds, t.service_id, "service"),
         headsign: t.trip_headsign ?? "",
+        shape: t.shape_id ?? "",
       },
     ]),
   );
@@ -208,6 +264,7 @@ try {
   }
   db.exec("COMMIT; CREATE INDEX trip_order ON times(trip,seq)");
   const patterns: Pattern[] = [],
+    patternShapes: string[] = [],
     patternIds = new Map<string, number>(),
     profileIds: Map<string, number>[] = [];
   interface TimeRow {
@@ -249,6 +306,7 @@ try {
         profiles: [],
         trips: [],
       });
+      patternShapes.push(trip.shape);
       profileIds.push(new Map());
     }
     const p = patterns[pi],
@@ -322,6 +380,28 @@ try {
         }
     return result;
   });
+  // Street-following geometry per pattern, simplified to ~6 m and Google-polyline encoded.
+  const wantedShapes = new Set(patternShapes.filter(Boolean));
+  const shapePoints = new Map<string, { seq: number; lat: number; lon: number }[]>();
+  for await (const r of rows("shapes.txt")) {
+    if (!wantedShapes.has(r.shape_id)) continue;
+    const list = shapePoints.get(r.shape_id) ?? [];
+    list.push({
+      seq: Number(r.shape_pt_sequence),
+      lat: Number(r.shape_pt_lat),
+      lon: Number(r.shape_pt_lon),
+    });
+    shapePoints.set(r.shape_id, list);
+  }
+  const encodedShapes = new Map<string, string>();
+  for (const [id, list] of shapePoints) {
+    list.sort((a, b) => a.seq - b.seq);
+    encodedShapes.set(id, encodePolyline(simplify(list, 6)));
+  }
+  const shapes = {
+    version,
+    patterns: patternShapes.map((id) => encodedShapes.get(id) ?? ""),
+  };
   const builtAt = new Date().toISOString();
   const bundle: Timetable = {
     version,
@@ -338,11 +418,13 @@ try {
   await mkdir(out, { recursive: true });
   await writeFile(resolve(out, "timetable.bin"), encodeBundle(bundle));
   await writeFile(resolve(out, "places.json"), JSON.stringify(stops));
+  await writeFile(resolve(out, "shapes.json"), JSON.stringify(shapes));
   // A locally provided archive is optional; routing builds never depend on a map provider.
   if (mapPath) await copyFile(mapPath, resolve(out, "bogota.pmtiles"));
   const names = [
     "timetable.bin",
     "places.json",
+    "shapes.json",
     ...(mapPath ? ["bogota.pmtiles"] : []),
   ];
   const files = await Promise.all(

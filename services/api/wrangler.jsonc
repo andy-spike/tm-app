@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "tm-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  // Bundle files: immutable objects at <version>/<file>.
+  "r2_buckets": [{ "binding": "BUNDLES", "bucket_name": "tm-bundles" }],
+  // Release metadata; see migrations/.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tm",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
