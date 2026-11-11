@@ -1,5 +1,17 @@
 package com.tmapp.android.ui.screens
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.tmapp.android.ui.components.GroupLabel
+import com.tmapp.android.ui.components.clockText
+import com.tmapp.android.ui.components.TmCard
+import com.tmapp.android.ui.components.groupItem
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,7 +42,6 @@ import com.tmapp.android.ui.RouteKey
 import com.tmapp.android.ui.StopKey
 import com.tmapp.android.ui.TripViewModel
 import com.tmapp.android.ui.components.CapFontScale
-import com.tmapp.android.ui.components.Eyebrow
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.ScheduledTag
 import com.tmapp.android.ui.components.durationText
@@ -97,41 +108,51 @@ fun ItineraryScreen(nav: Navigator, trip: TripViewModel, index: Int) {
         if (data == null || itinerary == null) return@DetailScreen
         val tt = data.timetable
         item("summary") {
-            Column(Modifier.gutter().semantics(mergeDescendants = true) { heading() }) {
-                Eyebrow(stringResource(R.string.itinerary_title))
-                Spacer(Modifier.height(6.dp))
-                CapFontScale { Row(verticalAlignment = Alignment.Bottom) {
-                    Text(stringResource(R.string.time_range, tf.clock(itinerary.departure), tf.clock(itinerary.arrival)), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
-                    Text(durationText(itinerary.duration), style = MaterialTheme.typography.headlineSmall)
-                } }
-                Text(
-                    if (itinerary.rides.isEmpty()) stringResource(R.string.walk_only) else transfersText(itinerary.transfers),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            TmCard(Modifier.semantics(mergeDescendants = true) { heading() }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.itinerary_title).uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    ScheduledTag(estimated = itinerary.rides.any { it.estimated })
+                }
                 Spacer(Modifier.height(Spacing.sm))
-                ScheduledTag(estimated = itinerary.rides.any { it.estimated })
+                CapFontScale { Row(verticalAlignment = Alignment.Bottom) {
+                    Text(clockText(tf.clock(itinerary.departure)), style = MaterialTheme.typography.headlineMedium)
+                    ItineraryBar(itinerary, Modifier.weight(1f).padding(horizontal = 10.dp, vertical = 7.dp))
+                    Text(clockText(tf.clock(itinerary.arrival)), style = MaterialTheme.typography.headlineMedium)
+                } }
+                Spacer(Modifier.height(Spacing.sm))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (itinerary.rides.isEmpty()) stringResource(R.string.walk_only) else transfersText(itinerary.transfers),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(durationText(itinerary.duration), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                }
             }
         }
-        item("gap") { Spacer(Modifier.height(Spacing.lg)) }
+        item("journey-title") { GroupLabel(stringResource(R.string.journey)) }
         val legs = itinerary.legs
+        val endsWalking = legs.last() is WalkLeg
         legs.forEachIndexed { li, leg ->
             when (leg) {
                 is WalkLeg -> item("leg$li") {
                     val minutes = leg.duration.toMinutes().toInt().coerceAtLeast(1)
                     val target = if (li == legs.lastIndex) stringResource(R.string.destination) else leg.to.name
-                    TimelineRow(
-                        title = stringResource(R.string.walk_to, target),
-                        subtitle = stringResource(R.string.walk_detail, leg.meters, minutes),
-                        color = walkColor,
-                        first = li == 0,
-                        last = false,
-                        onClick = null,
-                        trailing = tf.clock(leg.departure),
-                        emphasis = false,
-                        dashedAbove = true,
-                        dashedBelow = true,
-                    )
+                    Group(first = li == 0, last = false) {
+                        TimelineRow(
+                            title = stringResource(R.string.walk_to, target),
+                            subtitle = stringResource(R.string.walk_detail, leg.meters, minutes),
+                            color = walkColor,
+                            first = li == 0,
+                            last = false,
+                            onClick = null,
+                            time = tf.clock(leg.departure),
+                            emphasis = li == 0,
+                            dashedAbove = true,
+                            dashedBelow = true,
+                        )
+                    }
                 }
                 is TransitLeg -> {
                     val route = tt.routes[leg.route]
@@ -139,7 +160,7 @@ fun ItineraryScreen(nav: Navigator, trip: TripViewModel, index: Int) {
                     val board = tt.stops[leg.stops.first().stop]
                     val alight = tt.stops[leg.stops.last().stop]
                     item("board$li") {
-                        Column {
+                        Group(first = li == 0, last = false) {
                             TimelineRow(
                                 title = board.name,
                                 subtitle = null,
@@ -147,29 +168,40 @@ fun ItineraryScreen(nav: Navigator, trip: TripViewModel, index: Int) {
                                 first = li == 0,
                                 last = false,
                                 onClick = { nav.open(StopKey(tt.stops[tt.rootOf(board.index)].id)) },
-                                trailing = tf.clock(leg.departure),
+                                time = tf.clock(leg.departure),
                                 emphasis = true,
                                 dashedAbove = li > 0 && legs[li - 1] is WalkLeg,
                             )
-                            Row(Modifier.gutter().padding(start = 36.dp, bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                                RouteBadge(route)
-                                Spacer(Modifier.width(Spacing.sm))
-                                Text(stringResource(R.string.board, route.code, leg.destination), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                            }
-                            val stopsBetween = leg.stops.size - 2
-                            Row(Modifier.gutter().padding(start = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    pluralStringResource(R.plurals.ride_stops, leg.stops.size - 1, leg.stops.size - 1, durationText(leg.duration)),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 8.dp).weight(1f),
-                                )
-                                if (stopsBetween > 0) {
-                                    TextButton(onClick = { expanded[li] = !(expanded[li] ?: false) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                                        Text(stringResource(if (expanded[li] == true) R.string.hide_stops else R.string.show_stops))
+                            // The ride itself: line, direction, stops and length, on the line's track.
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
+                                Spacer(Modifier.width(76.dp))
+                                Canvas(Modifier.width(20.dp).fillMaxHeight()) {
+                                    drawLine(color, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 5.dp.toPx())
+                                }
+                                Spacer(Modifier.width(Spacing.md))
+                                Column(Modifier.weight(1f).padding(vertical = Spacing.xs)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RouteBadge(route)
+                                        Spacer(Modifier.width(Spacing.sm))
+                                        Text(stringResource(R.string.toward, leg.destination), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    }
+                                    Text(
+                                        pluralStringResource(R.plurals.ride_stops, leg.stops.size - 1, leg.stops.size - 1, durationText(leg.duration)),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    )
+                                    Row {
+                                        val stopsBetween = leg.stops.size - 2
+                                        if (stopsBetween > 0) {
+                                            TextButton(onClick = { expanded[li] = !(expanded[li] ?: false) }, modifier = Modifier.heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 0.dp)) {
+                                                Text(stringResource(if (expanded[li] == true) R.string.hide_stops else R.string.show_stops))
+                                            }
+                                            Spacer(Modifier.width(Spacing.lg))
+                                        }
+                                        TextButton(onClick = { nav.open(RouteKey(route.id)) }, modifier = Modifier.heightIn(min = 48.dp), contentPadding = PaddingValues(horizontal = 0.dp)) { Text(stringResource(R.string.view_route)) }
                                     }
                                 }
-                                TextButton(onClick = { nav.open(RouteKey(route.id)) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.view_route)) }
                             }
                         }
                     }
@@ -177,42 +209,55 @@ fun ItineraryScreen(nav: Navigator, trip: TripViewModel, index: Int) {
                         val middle = leg.stops.subList(1, leg.stops.size - 1)
                         items(middle.size, key = { "mid$li-$it" }) { k ->
                             val st = middle[k]
-                            TimelineRow(tt.stops[st.stop].name, null, color, first = false, last = false, onClick = null, trailing = tf.clock(st.departure), emphasis = false)
+                            Group(first = false, last = false) {
+                                TimelineRow(tt.stops[st.stop].name, null, color, first = false, last = false, onClick = null, time = tf.clock(st.departure), emphasis = false)
+                            }
                         }
                     }
                     item("alight$li") {
-                        TimelineRow(
-                            title = stringResource(R.string.alight, alight.name),
-                            subtitle = null,
-                            color = color,
-                            first = false,
-                            last = li == legs.lastIndex,
-                            onClick = { nav.open(StopKey(tt.stops[tt.rootOf(alight.index)].id)) },
-                            trailing = tf.clock(leg.arrival),
-                            emphasis = true,
-                            dashedBelow = li < legs.lastIndex && legs[li + 1] is WalkLeg,
-                        )
+                        val isLast = li == legs.lastIndex
+                        Group(first = false, last = isLast) {
+                            TimelineRow(
+                                title = stringResource(R.string.alight, alight.name),
+                                subtitle = null,
+                                color = color,
+                                first = false,
+                                last = isLast,
+                                onClick = { nav.open(StopKey(tt.stops[tt.rootOf(alight.index)].id)) },
+                                time = tf.clock(leg.arrival),
+                                emphasis = true,
+                                dashedBelow = li < legs.lastIndex && legs[li + 1] is WalkLeg,
+                            )
+                        }
                     }
                 }
             }
         }
-        if (legs.last() is WalkLeg) {
+        if (endsWalking) {
             item("arrive") {
-                TimelineRow(
-                    title = stringResource(R.string.arrive, stringResource(R.string.destination)),
-                    subtitle = null,
-                    color = accent,
-                    first = false,
-                    last = true,
-                    onClick = null,
-                    trailing = tf.clock(itinerary.arrival),
-                    emphasis = true,
-                    dashedAbove = true,
-                )
+                Group(first = false, last = true) {
+                    TimelineRow(
+                        title = stringResource(R.string.arrive, stringResource(R.string.destination)),
+                        subtitle = null,
+                        color = accent,
+                        first = false,
+                        last = true,
+                        onClick = null,
+                        time = tf.clock(itinerary.arrival),
+                        emphasis = true,
+                        dashedAbove = true,
+                    )
+                }
             }
         }
         item("honesty") {
-            Text(stringResource(R.string.scheduled_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.gutter().padding(top = Spacing.xl))
+            Text(stringResource(R.string.scheduled_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.gutter().padding(start = 4.dp, top = Spacing.lg))
         }
     }
+}
+
+/** A slice of the journey card; the first and last slices round its corners and add breathing room. */
+@Composable
+private fun Group(first: Boolean, last: Boolean, content: @Composable () -> Unit) {
+    Column(Modifier.groupItem(first, last, MaterialTheme.colorScheme.surface).padding(top = if (first) Spacing.sm else 0.dp, bottom = if (last) Spacing.sm else 0.dp)) { content() }
 }

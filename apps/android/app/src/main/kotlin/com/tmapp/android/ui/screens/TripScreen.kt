@@ -3,14 +3,26 @@ package com.tmapp.android.ui.screens
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.font.FontWeight
+import com.tmapp.android.ui.components.BarSegment
+import com.tmapp.android.ui.components.RedHeader
+import com.tmapp.android.ui.components.TmCard
+import com.tmapp.android.ui.components.TripBar
+import com.tmapp.android.ui.components.minutesUntil
+import com.tmapp.android.ui.components.clockText
+import com.tmapp.android.ui.theme.Brand
+import com.tmapp.android.ui.theme.RouteColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,20 +32,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,13 +75,10 @@ import com.tmapp.android.ui.PlanState
 import com.tmapp.android.ui.SearchKey
 import com.tmapp.android.ui.TimeMode
 import com.tmapp.android.ui.TripViewModel
-import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Bone
 import com.tmapp.android.ui.components.EmptyState
-import com.tmapp.android.ui.components.Eyebrow
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.ScheduledTag
-import com.tmapp.android.ui.components.WalkChip
 import com.tmapp.android.ui.components.durationText
 import com.tmapp.android.ui.components.rememberNow
 import com.tmapp.android.ui.components.rememberTimeFormat
@@ -95,66 +99,63 @@ fun TripScreen(nav: Navigator, vm: TripViewModel) {
     val tf = rememberTimeFormat()
     var picker by remember { mutableStateOf<TimeMode?>(null) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.onPermissionResult() }
-    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
-        item("title") {
-            CapFontScale {
-                Text(
-                    stringResource(R.string.trip_title),
-                    style = MaterialTheme.typography.displaySmall,
-                    modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() },
+    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+        item("header") {
+            RedHeader(stringResource(R.string.trip_title), overlap = Spacing.lg) {
+                Endpoints(
+                    from = endpointLabel(state.from),
+                    to = endpointLabel(state.to),
+                    onFrom = { nav.open(SearchKey(SearchMode.FROM)) },
+                    onTo = { nav.open(SearchKey(SearchMode.TO)) },
+                    onSwap = vm::swap,
                 )
-            }
-        }
-        item("endpoints") {
-            Endpoints(
-                from = endpointLabel(state.from),
-                to = endpointLabel(state.to),
-                onFrom = { nav.open(SearchKey(SearchMode.FROM)) },
-                onTo = { nav.open(SearchKey(SearchMode.TO)) },
-                onSwap = vm::swap,
-            )
-        }
-        item("time") {
-            val clock = tf.clock(state.date.atTime(state.time).atZone(BOGOTA).toInstant())
-            val day = if (state.date != LocalDate.now(BOGOTA)) " · " + stringResource(R.string.tomorrow) else ""
-            LazyRow(contentPadding = PaddingValues(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.padding(top = Spacing.lg)) {
-                item { TimeChip(stringResource(R.string.leave_now), state.mode == TimeMode.NOW) { vm.setTime(TimeMode.NOW, LocalDate.now(BOGOTA), LocalTime.now(BOGOTA)) } }
-                item {
-                    TimeChip(if (state.mode == TimeMode.DEPART) stringResource(R.string.depart_at, clock) + day else stringResource(R.string.depart_at_label), state.mode == TimeMode.DEPART) { picker = TimeMode.DEPART }
-                }
-                item {
-                    TimeChip(if (state.mode == TimeMode.ARRIVE) stringResource(R.string.arrive_by, clock) + day else stringResource(R.string.arrive_by_label), state.mode == TimeMode.ARRIVE) { picker = TimeMode.ARRIVE }
+                val clock = tf.clock(state.date.atTime(state.time).atZone(BOGOTA).toInstant())
+                val day = if (state.date != LocalDate.now(BOGOTA)) " · " + stringResource(R.string.tomorrow) else ""
+                LazyRow(contentPadding = PaddingValues(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.padding(top = Spacing.md)) {
+                    item { TimeChip(stringResource(R.string.leave_now), state.mode == TimeMode.NOW) { vm.setTime(TimeMode.NOW, LocalDate.now(BOGOTA), LocalTime.now(BOGOTA)) } }
+                    item {
+                        TimeChip(if (state.mode == TimeMode.DEPART) stringResource(R.string.depart_at, clock) + day else stringResource(R.string.depart_at_label), state.mode == TimeMode.DEPART) { picker = TimeMode.DEPART }
+                    }
+                    item {
+                        TimeChip(if (state.mode == TimeMode.ARRIVE) stringResource(R.string.arrive_by, clock) + day else stringResource(R.string.arrive_by_label), state.mode == TimeMode.ARRIVE) { picker = TimeMode.ARRIVE }
+                    }
                 }
             }
         }
         when (val plan = state.plan) {
-            PlanState.Idle -> item("idle") { EmptyState(stringResource(R.string.trip_title), stringResource(R.string.trip_empty)) }
+            PlanState.Idle -> item("idle") { EmptyState(stringResource(R.string.trip_empty_title), stringResource(R.string.trip_empty)) }
             PlanState.NeedLocation -> item("need") {
-                Column(Modifier.gutter().padding(top = Spacing.xl)) {
+                TmCard(Modifier.padding(top = Spacing.xl)) {
                     Text(stringResource(R.string.trip_need_location), style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.height(Spacing.md))
-                    FilledTonalButton(onClick = {
+                    Button(onClick = {
                         permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-                    }) { Text(stringResource(R.string.location_allow)) }
+                    }, shape = MaterialTheme.shapes.small, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.location_allow)) }
                 }
             }
-            PlanState.Loading -> items(3, key = { "bone$it" }) { OptionSkeleton() }
+            PlanState.Loading -> items(3, key = { "bone$it" }) { OptionSkeleton(first = it == 0) }
             PlanState.NoFix -> item("nofix") {
-                Column(Modifier.gutter().padding(top = Spacing.xl)) {
+                TmCard(Modifier.padding(top = Spacing.xl)) {
                     Text(stringResource(R.string.trip_no_fix), style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.height(Spacing.md))
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        FilledTonalButton(onClick = vm::replan) { Text(stringResource(R.string.retry)) }
-                        androidx.compose.material3.OutlinedButton(onClick = { nav.open(SearchKey(SearchMode.FROM)) }) { Text(stringResource(R.string.choose_origin)) }
+                        Button(onClick = vm::replan, shape = MaterialTheme.shapes.small, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.retry)) }
+                        OutlinedButton(onClick = { nav.open(SearchKey(SearchMode.FROM)) }, shape = MaterialTheme.shapes.small, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.choose_origin)) }
                     }
                 }
             }
             is PlanState.Done -> {
                 if (plan.options.isEmpty()) {
-                    item("none") { EmptyState(stringResource(R.string.trip_title), stringResource(R.string.trip_none)) }
+                    item("none") { EmptyState(stringResource(R.string.trip_none_title), stringResource(R.string.trip_none)) }
                 } else {
                     item("note") {
-                        Row(Modifier.gutter().padding(top = Spacing.xl, bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.padding(start = Spacing.gutter + 4.dp, end = Spacing.gutter, top = Spacing.xl, bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.connections).uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f).semantics { heading() },
+                            )
                             ScheduledTag()
                         }
                     }
@@ -185,36 +186,54 @@ private fun endpointLabel(e: Endpoint?): String? = when (e) {
     is Endpoint.At -> e.place.name
 }
 
+/** The from/to card on the red band: two stacked fields joined by a dotted line, swap on the right. */
 @Composable
 private fun Endpoints(from: String?, to: String?, onFrom: () -> Unit, onTo: () -> Unit, onSwap: () -> Unit) {
     val hairline = LocalExtra.current.hairline
     Row(
-        Modifier.gutter().padding(top = Spacing.xl).fillMaxWidth().clip(RoundedCornerShape(20.dp)).border(1.dp, hairline, RoundedCornerShape(20.dp)),
+        Modifier.gutter().fillMaxWidth().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surface),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            EndpointField(stringResource(R.string.from), from, stringResource(R.string.choose_origin), MaterialTheme.colorScheme.onSurface, onFrom)
-            Box(Modifier.padding(start = 44.dp).fillMaxWidth().height(1.dp).background(hairline))
-            EndpointField(stringResource(R.string.to), to, stringResource(R.string.choose_destination), MaterialTheme.colorScheme.primary, onTo)
+        Box(Modifier.weight(1f)) {
+            Column {
+                EndpointField(stringResource(R.string.from), from, stringResource(R.string.choose_origin), destination = false, onFrom)
+                Box(Modifier.padding(start = 48.dp).fillMaxWidth().height(1.dp).background(hairline))
+                EndpointField(stringResource(R.string.to), to, stringResource(R.string.choose_destination), destination = true, onTo)
+            }
+            // The dotted connector between the two markers.
+            val ink = MaterialTheme.colorScheme.onSurfaceVariant
+            Canvas(Modifier.padding(start = 23.dp).width(2.dp).height(128.dp).align(Alignment.CenterStart)) {
+                val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.dp.toPx()))
+                drawLine(ink, Offset(size.width / 2, 44.dp.toPx()), Offset(size.width / 2, size.height - 44.dp.toPx()), 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, pathEffect = dash)
+            }
         }
         IconButton(onClick = onSwap, modifier = Modifier.padding(end = Spacing.xs).size(48.dp)) {
-            Icon(Icons.Rounded.SwapVert, stringResource(R.string.swap))
+            Icon(Icons.Rounded.SwapVert, stringResource(R.string.swap), tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
 
 @Composable
-private fun EndpointField(label: String, value: String?, placeholder: String, dot: Color, onClick: () -> Unit) {
+private fun EndpointField(label: String, value: String?, placeholder: String, destination: Boolean, onClick: () -> Unit) {
+    val accent = MaterialTheme.colorScheme.primary
+    val ink = MaterialTheme.colorScheme.onSurface
     Row(
         Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(role = Role.Button, onClick = onClick)
             .clearAndSetSemantics { contentDescription = "$label: ${value ?: placeholder}" }
-            .padding(horizontal = Spacing.lg),
+            .padding(start = 16.dp, end = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(12.dp).clip(CircleShape).background(dot))
+        Canvas(Modifier.size(16.dp)) {
+            if (destination) {
+                drawCircle(accent, size.minDimension / 2)
+                drawCircle(Color.White, size.minDimension / 5)
+            } else {
+                drawCircle(ink, size.minDimension / 2 - 1.5.dp.toPx(), style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+            }
+        }
         Spacer(Modifier.width(Spacing.lg))
         Column {
-            Eyebrow(label)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 value ?: placeholder,
                 style = MaterialTheme.typography.titleMedium,
@@ -226,16 +245,39 @@ private fun EndpointField(label: String, value: String?, placeholder: String, do
     }
 }
 
+/** A choice on the red band: outlined white when idle, solid white with red text when chosen. */
 @Composable
 private fun TimeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val extra = LocalExtra.current
+    val shape = MaterialTheme.shapes.small
+    Box(
+        Modifier.heightIn(min = 40.dp).clip(shape)
+            .then(if (selected) Modifier.background(Color.White) else Modifier.border(1.5.dp, extra.onHeader.copy(alpha = 0.6f), shape))
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) Brand.red else extra.onHeader,
+            maxLines = 1,
+        )
+    }
+}
+
+/** Today/tomorrow choice inside the time dialog. */
+@Composable
+private fun DayChip(label: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
         modifier = Modifier.heightIn(min = 40.dp),
+        shape = MaterialTheme.shapes.small,
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.secondary,
-            selectedLabelColor = MaterialTheme.colorScheme.onSecondary,
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
         ),
     )
 }
@@ -252,8 +294,8 @@ private fun TimeDialog(initial: LocalTime, initialTomorrow: Boolean, onDismiss: 
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.padding(bottom = Spacing.lg)) {
-                    TimeChip(stringResource(R.string.today), !tomorrow) { tomorrow = false }
-                    TimeChip(stringResource(R.string.tomorrow), tomorrow) { tomorrow = true }
+                    DayChip(stringResource(R.string.today), !tomorrow) { tomorrow = false }
+                    DayChip(stringResource(R.string.tomorrow), tomorrow) { tomorrow = true }
                 }
                 TimePicker(picker)
             }
@@ -261,7 +303,10 @@ private fun TimeDialog(initial: LocalTime, initialTomorrow: Boolean, onDismiss: 
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * One connection, SBB-style: first line and direction on top, then departure and arrival times
+ * bracketing the journey drawn to scale, then where to board and how long it takes.
+ */
 @Composable
 private fun OptionCard(it: Itinerary, onClick: () -> Unit) {
     val data = LocalTransit.current ?: return
@@ -274,54 +319,76 @@ private fun OptionCard(it: Itinerary, onClick: () -> Unit) {
     val spoken = stringResource(R.string.itinerary_cd, tf.clock(it.departure), tf.clock(it.arrival), duration, transfers) +
         rides.joinToString("") { r -> ", " + RouteCodes.sayable(data.timetable.routes[r.route].code) }
     Column(
-        Modifier.gutter().padding(vertical = Spacing.sm).fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp)).border(1.dp, LocalExtra.current.hairline, RoundedCornerShape(20.dp))
+        Modifier.gutter().padding(bottom = Spacing.sm).fillMaxWidth()
+            .clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface)
             .clickable(role = Role.Button, onClick = onClick)
             .clearAndSetSemantics { contentDescription = spoken }
-            .padding(Spacing.lg),
+            .padding(horizontal = Spacing.lg, vertical = 14.dp),
     ) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.time_range, tf.clock(it.departure), tf.clock(it.arrival)), style = MaterialTheme.typography.titleLarge)
-                Text(transfers, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Text(duration, style = MaterialTheme.typography.headlineMedium)
-        }
-        Spacer(Modifier.height(Spacing.md))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-            it.legs.forEachIndexed { i, leg ->
-                if (i > 0) Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                when (leg) {
-                    is WalkLeg -> WalkChip(leg.duration.toMinutes().toInt().coerceAtLeast(1))
-                    is TransitLeg -> RouteBadge(data.timetable.routes[leg.route])
-                }
-            }
-        }
-        rides.firstOrNull()?.let { first ->
-            Spacer(Modifier.height(Spacing.md))
-            val stop = data.timetable.stops[first.stops.first().stop]
+        // Departure countdown, red while it is close enough to matter.
+        val first = rides.firstOrNull()
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(R.string.leave_from, stop.name) + " · " + stringResource(R.string.leaves_in, tf.relative(now, first.departure)),
-                style = MaterialTheme.typography.bodyMedium,
+                first?.let { f -> stringResource(R.string.toward, f.destination) } ?: stringResource(R.string.walk_only),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            val m = minutesUntil(now, it.departure)
+            Text(
+                tf.relative(now, it.departure),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (m < 15) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(Spacing.xs))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(clockText(tf.clock(it.departure)), style = MaterialTheme.typography.headlineSmall)
+            ItineraryBar(it, Modifier.weight(1f).padding(horizontal = 10.dp, vertical = 5.dp))
+            Text(clockText(tf.clock(it.arrival)), style = MaterialTheme.typography.headlineSmall)
+        }
+        Spacer(Modifier.height(Spacing.sm))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val board = first?.let { f -> data.timetable.stops[f.stops.first().stop].name }
+            Text(
+                listOfNotNull(board?.let { b -> stringResource(R.string.leave_from, b) }, transfers).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-            if (rides.any { r -> r.estimated }) ScheduledTag(Modifier.padding(top = 4.dp), estimated = true)
+            Spacer(Modifier.width(Spacing.md))
+            Text(duration, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
         }
+        if (rides.any { r -> r.estimated }) ScheduledTag(Modifier.padding(top = 6.dp), estimated = true)
     }
+}
+
+/** The itinerary drawn to scale with its line pictograms; see [TripBar]. */
+@Composable
+fun ItineraryBar(it: Itinerary, modifier: Modifier = Modifier) {
+    val data = LocalTransit.current ?: return
+    val total = it.duration.seconds.coerceAtLeast(1).toFloat()
+    fun at(t: java.time.Instant) = (java.time.Duration.between(it.departure, t).seconds / total).coerceIn(0f, 1f)
+    val segments = it.legs.map { leg ->
+        BarSegment(at(leg.departure), at(leg.arrival), (leg as? TransitLeg)?.let { l -> RouteColors.background(data.timetable.routes[l.route]) } ?: Color.Gray, walk = leg is WalkLeg)
+    }
+    val badges: List<Pair<Float, @Composable () -> Unit>> = it.rides.map { r -> at(r.departure) to @Composable { RouteBadge(data.timetable.routes[r.route]) } }
+    TripBar(segments, badges, modifier)
 }
 
 @Composable
-private fun OptionSkeleton() {
+private fun OptionSkeleton(first: Boolean) {
     Column(
-        Modifier.gutter().padding(vertical = Spacing.sm).fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp)).border(1.dp, LocalExtra.current.hairline, RoundedCornerShape(20.dp)).padding(Spacing.lg),
+        Modifier.gutter().padding(top = if (first) Spacing.xl else 0.dp, bottom = Spacing.sm).fillMaxWidth()
+            .clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).padding(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Bone(160.dp, 22.dp)
-        Bone(220.dp, 18.dp)
-        Bone(260.dp, 14.dp)
+        Bone(140.dp, 12.dp)
+        Bone(280.dp, 22.dp)
+        Bone(200.dp, 12.dp)
     }
 }
-

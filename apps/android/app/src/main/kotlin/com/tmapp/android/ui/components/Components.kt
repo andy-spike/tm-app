@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -50,7 +52,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tmapp.android.R
-import com.tmapp.android.ui.theme.GeistMono
 import com.tmapp.android.ui.theme.LocalExtra
 import com.tmapp.android.ui.theme.RouteColors
 import com.tmapp.android.ui.theme.Spacing
@@ -87,6 +88,21 @@ fun clock(instant: Instant): String {
     val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     return remember(instant, locale) {
         DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(instant.atZone(BOGOTA))
+    }
+}
+
+/**
+ * A clock time with its day-period marker ("p. m.") set smaller, so the digits carry the weight
+ * the way a 24-hour board would.
+ */
+fun clockText(text: String): androidx.compose.ui.text.AnnotatedString {
+    val cut = text.indexOfLast { it.isDigit() } + 1
+    if (cut <= 0 || cut >= text.length) return androidx.compose.ui.text.AnnotatedString(text)
+    return androidx.compose.ui.text.buildAnnotatedString {
+        append(text.substring(0, cut))
+        pushStyle(androidx.compose.ui.text.SpanStyle(fontSize = androidx.compose.ui.unit.TextUnit(0.6f, androidx.compose.ui.unit.TextUnitType.Em), fontWeight = FontWeight.SemiBold))
+        append(text.substring(cut).replace(' ', '\u00A0'))
+        pop()
     }
 }
 
@@ -130,41 +146,37 @@ fun Minutes(now: Instant, t: Instant, large: Boolean, modifier: Modifier = Modif
 
 // ---- Routes ----------------------------------------------------------------------------------------
 
+/** A line pictogram: a solid coloured plate with the code in bold, like station signage. */
 @Composable
-fun RouteBadge(route: Route, modifier: Modifier = Modifier, large: Boolean = false, outlined: Boolean = false) {
+fun RouteBadge(route: Route, modifier: Modifier = Modifier, large: Boolean = false, @Suppress("UNUSED_PARAMETER") outlined: Boolean = false) {
     val bg = RouteColors.background(route)
-    val shape = RoundedCornerShape(if (large) 8.dp else 6.dp)
-    val padding = if (large) Modifier.padding(horizontal = 10.dp, vertical = 5.dp) else Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-    val style = MaterialTheme.typography.labelSmall.copy(
-        fontFamily = GeistMono,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.2.sp,
-        fontSize = if (large) 17.sp else 13.sp,
-        lineHeight = if (large) 22.sp else 17.sp,
+    val shape = RoundedCornerShape(if (large) 5.dp else 4.dp)
+    val style = MaterialTheme.typography.labelLarge.copy(
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 0.sp,
+        fontSize = if (large) 19.sp else 14.sp,
+        lineHeight = if (large) 24.sp else 18.sp,
     )
-    val base = modifier
-        .clip(shape)
-        .semantics { contentDescription = RouteCodes.sayable(route.code) }
-    if (outlined) {
-        Row(base.border(1.dp, MaterialTheme.colorScheme.outline, shape).then(padding), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(if (large) 8.dp else 6.dp).clip(CircleShape).background(bg))
-            Spacer(Modifier.width(5.dp))
-            Text(route.code, style = style, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-        }
-    } else {
-        Box(base.background(bg).then(padding)) {
-            Text(route.code, style = style, color = RouteColors.content(bg), maxLines = 1)
-        }
+    Box(
+        modifier
+            .semantics { contentDescription = RouteCodes.sayable(route.code) }
+            .clip(shape)
+            .background(bg)
+            .widthIn(min = if (large) 52.dp else 38.dp)
+            .padding(horizontal = if (large) 9.dp else 6.dp, vertical = if (large) 3.dp else 1.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(route.code, style = style, color = RouteColors.content(bg), maxLines = 1)
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RouteBadges(routes: List<Route>, max: Int = 6, modifier: Modifier = Modifier) {
-    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        routes.take(max).forEach { RouteBadge(it, outlined = true) }
+    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        routes.take(max).forEach { RouteBadge(it) }
         if (routes.size > max) {
-            Text("+${routes.size - max}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterVertically))
+            Text("+${routes.size - max}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterVertically).padding(start = 2.dp))
         }
     }
 }
@@ -185,17 +197,19 @@ fun systemLabel(system: SystemKind): String = stringResource(
 
 // ---- Stops -----------------------------------------------------------------------------------------
 
+/** Station or stop pictogram: TransMilenio red for trunk stations, SITP blue for street stops. */
 @Composable
-fun StopTile(stop: Stop, modifier: Modifier = Modifier, size: Dp = 40.dp) {
+fun StopTile(stop: Stop, modifier: Modifier = Modifier, size: Dp = 36.dp) {
+    val extra = LocalExtra.current
     Box(
-        modifier.size(size).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh),
+        modifier.size(size).clip(RoundedCornerShape(size * 0.22f)).background(if (stop.isStation) extra.station else extra.stop),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             if (stop.isStation) Icons.Rounded.Train else Icons.Rounded.DirectionsBus,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(size * 0.5f),
+            tint = Color.White,
+            modifier = Modifier.size(size * 0.6f),
         )
     }
 }
@@ -251,7 +265,7 @@ fun Hairline(modifier: Modifier = Modifier) {
 @Composable
 fun Bone(width: Dp, height: Dp, modifier: Modifier = Modifier) {
     val alpha by rememberInfiniteTransition(label = "bone").animateFloat(0.5f, 1f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "a")
-    Box(modifier.width(width).height(height).alpha(alpha).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh))
+    Box(modifier.width(width).height(height).alpha(alpha).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh))
 }
 
 @Composable
@@ -259,7 +273,7 @@ fun SkeletonRows(count: Int = 4, modifier: Modifier = Modifier) {
     Column(modifier.padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
         repeat(count) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Bone(40.dp, 40.dp)
+                Bone(36.dp, 36.dp)
                 Spacer(Modifier.width(Spacing.md))
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Bone(180.dp, 16.dp)

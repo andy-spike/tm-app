@@ -1,9 +1,9 @@
 package com.tmapp.android.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,11 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -53,14 +51,12 @@ import com.tmapp.android.ui.SavedStopCard
 import com.tmapp.android.ui.SavedViewModel
 import com.tmapp.android.ui.SettingsViewModel
 import com.tmapp.android.ui.StopKey
-import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.EmptyState
-import com.tmapp.android.ui.components.Eyebrow
-import com.tmapp.android.ui.components.Hairline
+import com.tmapp.android.ui.components.GroupLabel
+import com.tmapp.android.ui.components.RedHeader
 import com.tmapp.android.ui.components.Minutes
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.ScheduledTag
-import com.tmapp.android.ui.components.SectionTitle
 import com.tmapp.android.ui.components.SkeletonRows
 import com.tmapp.android.ui.components.StopTile
 import com.tmapp.android.ui.components.rememberNow
@@ -81,10 +77,8 @@ fun SavedScreen(nav: Navigator) {
     val state by vm.state.collectAsStateWithLifecycle()
     val data = LocalTransit.current
     val now = rememberNow()
-    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
-        item("title") {
-            CapFontScale { Text(stringResource(R.string.saved_title), style = MaterialTheme.typography.displaySmall, modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() }) }
-        }
+    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+        item("title") { RedHeader(stringResource(R.string.saved_title)) }
         if (!state.loaded || data == null) {
             item("loading") { SkeletonRows(3, Modifier.padding(top = Spacing.xl)) }
             return@LazyColumn
@@ -94,15 +88,22 @@ fun SavedScreen(nav: Navigator) {
             return@LazyColumn
         }
         if (state.stops.isNotEmpty()) {
-            item("stops-title") { SectionTitle(stringResource(R.string.saved_stops), Modifier.gutter().padding(top = Spacing.xl, bottom = Spacing.sm)) }
+            item("stops-title") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    GroupLabel(stringResource(R.string.saved_stops), Modifier.weight(1f))
+                    ScheduledTag(Modifier.padding(end = Spacing.gutter + 4.dp, top = Spacing.md))
+                }
+            }
             items(state.stops, key = { "s${it.stop}" }) { card ->
                 SavedStopRow(card, now) { nav.open(StopKey(data.timetable.stops[card.stop].id)) }
             }
-            item("scheduled") { ScheduledTag(Modifier.gutter().padding(top = Spacing.sm)) }
         }
         if (state.routes.isNotEmpty()) {
-            item("routes-title") { SectionTitle(stringResource(R.string.saved_routes), Modifier.gutter().padding(top = Spacing.xl, bottom = Spacing.sm)) }
-            items(state.routes, key = { "r$it" }) { r -> RouteRow(r) { nav.open(RouteKey(data.timetable.routes[r].id)) } }
+            item("routes-title") { GroupLabel(stringResource(R.string.saved_routes)) }
+            items(state.routes.size, key = { "r${state.routes[it]}" }) { i ->
+                val r = state.routes[i]
+                RouteRow(r, first = i == 0, last = i == state.routes.lastIndex) { nav.open(RouteKey(data.timetable.routes[r].id)) }
+            }
         }
     }
 }
@@ -112,8 +113,8 @@ private fun SavedStopRow(card: SavedStopCard, now: java.time.Instant, onClick: (
     val data = LocalTransit.current ?: return
     val stop = data.timetable.stops[card.stop]
     Column(
-        Modifier.gutter().padding(vertical = Spacing.sm).fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp)).border(1.dp, LocalExtra.current.hairline, RoundedCornerShape(20.dp))
+        Modifier.gutter().padding(bottom = Spacing.sm).fillMaxWidth()
+            .clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface)
             .clickable(role = Role.Button, onClick = onClick).padding(Spacing.lg),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -129,13 +130,13 @@ private fun SavedStopRow(card: SavedStopCard, now: java.time.Instant, onClick: (
         }
         card.departures.forEachIndexed { i, d ->
             if (i == 0) Spacer(Modifier.height(Spacing.sm))
-            Hairline(Modifier.padding(vertical = 6.dp))
+            Box(Modifier.fillMaxWidth().padding(vertical = 8.dp).height(1.dp).background(LocalExtra.current.hairline))
             val route = data.timetable.routes[d.route]
             val spoken = stringResource(R.string.departure_cd, com.tmapp.transit.RouteCodes.sayable(route.code), d.destination, com.tmapp.android.ui.components.rememberTimeFormat().relative(now, d.time))
             Row(Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = spoken }, verticalAlignment = Alignment.CenterVertically) {
                 RouteBadge(route)
-                Spacer(Modifier.width(Spacing.sm))
-                Text(d.destination, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(Spacing.md))
+                Text(d.destination, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Minutes(now, d.time, large = false)
             }
         }
@@ -150,14 +151,11 @@ fun SettingsScreen() {
     val check by vm.check.collectAsStateWithLifecycle()
     val settings by app.settings.collectAsStateWithLifecycle()
     val dates = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
-        item("title") {
-            CapFontScale { Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.displaySmall, modifier = Modifier.gutter().padding(top = Spacing.xl).semantics { heading() }) }
-        }
+    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+        item("title") { RedHeader(stringResource(R.string.settings_title)) }
         item("data") {
-            Card(Modifier.padding(top = Spacing.xl)) {
-                Eyebrow(stringResource(R.string.data_title))
-                Spacer(Modifier.height(Spacing.sm))
+            GroupLabel(stringResource(R.string.data_title))
+            Card {
                 val d = data
                 if (d == null) {
                     Text(stringResource(R.string.loading_timetable), style = MaterialTheme.typography.titleMedium)
@@ -176,7 +174,7 @@ fun SettingsScreen() {
                 }
                 Spacer(Modifier.height(Spacing.lg))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = vm::checkNow, enabled = check != CheckState.Checking, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Button(onClick = vm::checkNow, enabled = check != CheckState.Checking, shape = MaterialTheme.shapes.small, modifier = Modifier.heightIn(min = 48.dp)) {
                         if (check == CheckState.Checking) {
                             CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(Spacing.sm))
@@ -202,17 +200,21 @@ fun SettingsScreen() {
             }
         }
         item("appearance") {
-            Card(Modifier.padding(top = Spacing.md)) {
-                Eyebrow(stringResource(R.string.appearance))
-                Spacer(Modifier.height(Spacing.md))
+            GroupLabel(stringResource(R.string.appearance))
+            Card {
                 val modes = listOf(ThemeMode.SYSTEM to R.string.theme_system, ThemeMode.LIGHT to R.string.theme_light, ThemeMode.DARK to R.string.theme_dark)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     modes.forEachIndexed { i, (mode, label) ->
                         SegmentedButton(
                             selected = settings.theme == mode,
                             onClick = { vm.setTheme(mode) },
-                            shape = SegmentedButtonDefaults.itemShape(i, modes.size),
+                            shape = SegmentedButtonDefaults.itemShape(i, modes.size, MaterialTheme.shapes.small),
                             modifier = Modifier.heightIn(min = 48.dp),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = MaterialTheme.colorScheme.tertiary,
+                                activeContentColor = MaterialTheme.colorScheme.onTertiary,
+                                inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                            ),
                             label = { Text(stringResource(label), maxLines = 1) },
                         )
                     }
@@ -220,16 +222,14 @@ fun SettingsScreen() {
             }
         }
         item("privacy") {
-            Card(Modifier.padding(top = Spacing.md)) {
-                Eyebrow(stringResource(R.string.privacy_title))
-                Spacer(Modifier.height(Spacing.sm))
+            GroupLabel(stringResource(R.string.privacy_title))
+            Card {
                 Text(stringResource(R.string.privacy_body), style = MaterialTheme.typography.bodyMedium)
             }
         }
         item("about") {
-            Card(Modifier.padding(top = Spacing.md)) {
-                Eyebrow(stringResource(R.string.about_title))
-                Spacer(Modifier.height(Spacing.sm))
+            GroupLabel(stringResource(R.string.about_title))
+            Card {
                 Text(stringResource(R.string.about_body), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(Spacing.md))
                 Text(stringResource(R.string.version_label, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -241,7 +241,7 @@ fun SettingsScreen() {
 @Composable
 private fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(
-        modifier.gutter().fillMaxWidth().clip(RoundedCornerShape(20.dp)).border(1.dp, LocalExtra.current.hairline, RoundedCornerShape(20.dp)).padding(Spacing.lg),
+        modifier.gutter().fillMaxWidth().clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface).padding(Spacing.lg),
         verticalArrangement = Arrangement.Top,
     ) { content() }
 }

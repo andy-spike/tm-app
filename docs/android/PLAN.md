@@ -84,6 +84,17 @@ RAPTOR over flat `IntArray`s: one round per ride, up to 4 rides. Access and egre
 - Respect system dark theme, font scale and reduced animations.
 - No network spinner blocks any v1 screen; offline is the normal case.
 
+## Visual design
+
+Modelled on the SBB Mobile app, in TransMilenio colours. Defined in `ui/theme/Theme.kt` and `ui/components/Chrome.kt`.
+
+- Top-level screens open with a TransMilenio-red header band (`RedHeader`); the planner's from/to card sits on it.
+- Content is white cards on a light grey ground; related rows share one card (`groupItem`). Dark mode uses charcoal with grey cards and a deeper red band.
+- Type is Source Sans 3, a humanist sans in the Frutiger tradition, set bold for headings and times, with tabular figures. The "a. m./p. m." marker is set smaller (`clockText`).
+- Lines are solid colour plates with bold codes. Stops are pictogram tiles: red for TransMilenio stations, SITP blue for street stops.
+- Connections show the journey to scale (`TripBar`): rides in their line colour, walks dotted grey, line plates above where each ride starts.
+- The selected tab turns red; there is no pill indicator. Primary buttons are red with 8 dp corners.
+
 ## Validation
 
 - JVM tests for the decoder, router (real bundle, sample OD pairs), search ranking and route codes.

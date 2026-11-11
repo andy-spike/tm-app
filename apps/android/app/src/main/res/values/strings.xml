@@ -10,9 +10,6 @@
     <string name="back">Volver</string>
 
     <!-- Greetings -->
-    <string name="greeting_morning">Buenos días</string>
-    <string name="greeting_afternoon">Buenas tardes</string>
-    <string name="greeting_evening">Buenas noches</string>
     <string name="where_to">¿Para dónde vas?</string>
     <string name="search_hint">Ruta, estación o paradero</string>
 
@@ -114,6 +111,12 @@
     <string name="cancel">Cancelar</string>
     <string name="trip_empty">Elige origen y destino para ver cómo llegar.</string>
     <string name="trip_none">No encontramos cómo llegar en bus a esa hora. Prueba otra hora o un punto cercano.</string>
+    <string name="trip_empty_title">Planea tu viaje</string>
+    <string name="trip_none_title">Sin conexiones</string>
+    <string name="connections">Conexiones</string>
+    <string name="departures">Salidas</string>
+    <string name="stops_on_route">Paradas</string>
+    <string name="journey">Recorrido</string>
     <string name="trip_need_location">Activa tu ubicación o elige un origen.</string>
     <string name="trip_no_fix">No pudimos encontrar tu ubicación. Revisa que esté activada o elige un origen.</string>
     <string name="walk_only">Solo caminando</string>
@@ -170,6 +173,6 @@
     <string name="privacy_title">Privacidad</string>
     <string name="privacy_body">Sin cuenta y sin publicidad. Tu ubicación se usa solo en el teléfono para mostrar paraderos cercanos y planear viajes. La app solo se conecta a internet para descargar horarios nuevos.</string>
     <string name="about_title">Datos y créditos</string>
-    <string name="about_body">Horarios: datos abiertos GTFS de TransMilenio S.A. Mapa: © colaboradores de OpenStreetMap, Protomaps. Tipografía Geist (SIL OFL). No es una app oficial de TransMilenio ni del Distrito.</string>
+    <string name="about_body">Horarios: datos abiertos GTFS de TransMilenio S.A. Mapa: © colaboradores de OpenStreetMap, Protomaps. Tipografía Source Sans 3 (SIL OFL). No es una app oficial de TransMilenio ni del Distrito.</string>
     <string name="version_label">Versión %1$s</string>
 </resources>

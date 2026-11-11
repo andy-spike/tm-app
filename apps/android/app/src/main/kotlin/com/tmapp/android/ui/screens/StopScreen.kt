@@ -1,6 +1,6 @@
 package com.tmapp.android.ui.screens
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Directions
@@ -57,11 +57,12 @@ import com.tmapp.android.ui.TripKey
 import com.tmapp.android.ui.TripViewModel
 import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Eyebrow
-import com.tmapp.android.ui.components.Hairline
+import com.tmapp.android.ui.components.GroupLabel
+import com.tmapp.android.ui.components.RowDivider
+import com.tmapp.android.ui.components.groupItem
 import com.tmapp.android.ui.components.Minutes
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.ScheduledTag
-import com.tmapp.android.ui.components.SectionTitle
 import com.tmapp.android.ui.components.SkeletonRows
 import com.tmapp.android.ui.components.StopTile
 import com.tmapp.android.ui.components.clock
@@ -129,7 +130,7 @@ fun StopScreen(nav: Navigator, stopId: String, trip: TripViewModel) {
         }
         item("title") {
             Row(Modifier.gutter(), verticalAlignment = Alignment.CenterVertically) {
-                StopTile(stop, size = 48.dp)
+                StopTile(stop, size = 44.dp)
                 Spacer(Modifier.width(Spacing.md))
                 Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
                     CapFontScale { Text(stop.name, style = MaterialTheme.typography.headlineMedium) }
@@ -141,12 +142,12 @@ fun StopScreen(nav: Navigator, stopId: String, trip: TripViewModel) {
         item("actions") {
             val place = Place(stop.name, stop.lat, stop.lon, stop.index)
             Row(Modifier.gutter().padding(top = Spacing.lg), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Button(onClick = { trip.planWithStop(place, asOrigin = false); trip.rememberStop(stop.id, stop.name, stop.lat, stop.lon); nav.tab(TripKey) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Button(onClick = { trip.planWithStop(place, asOrigin = false); trip.rememberStop(stop.id, stop.name, stop.lat, stop.lon); nav.tab(TripKey) }, shape = MaterialTheme.shapes.small, modifier = Modifier.heightIn(min = 48.dp)) {
                     Icon(Icons.Rounded.Directions, null)
                     Spacer(Modifier.width(Spacing.sm))
                     Text(stringResource(R.string.directions_to_here))
                 }
-                OutlinedButton(onClick = { trip.planWithStop(place, asOrigin = true); trip.rememberStop(stop.id, stop.name, stop.lat, stop.lon); nav.tab(TripKey) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = { trip.planWithStop(place, asOrigin = true); trip.rememberStop(stop.id, stop.name, stop.lat, stop.lon); nav.tab(TripKey) }, shape = MaterialTheme.shapes.small, modifier = Modifier.heightIn(min = 48.dp)) {
                     Icon(Icons.Rounded.TripOrigin, null)
                     Spacer(Modifier.width(Spacing.sm))
                     Text(stringResource(R.string.directions_from_here))
@@ -156,12 +157,13 @@ fun StopScreen(nav: Navigator, stopId: String, trip: TripViewModel) {
         val routes = state.routes.map { data.timetable.routes[it] }
         if (routes.size > 1) {
             item("filters") {
-                LazyRow(contentPadding = PaddingValues(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.padding(top = Spacing.xl)) {
+                LazyRow(contentPadding = PaddingValues(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.padding(top = Spacing.lg)) {
                     item {
                         FilterChip(
                             selected = state.filter == null,
                             onClick = { vm.setFilter(null) },
                             label = { Text(stringResource(R.string.all_routes)) },
+                            shape = MaterialTheme.shapes.small,
                             modifier = Modifier.heightIn(min = 40.dp),
                             colors = chipColors(),
                         )
@@ -171,6 +173,7 @@ fun StopScreen(nav: Navigator, stopId: String, trip: TripViewModel) {
                             selected = state.filter == r.index,
                             onClick = { vm.setFilter(if (state.filter == r.index) null else r.index) },
                             label = { RouteBadge(r) },
+                            shape = MaterialTheme.shapes.small,
                             modifier = Modifier.heightIn(min = 40.dp),
                             colors = chipColors(),
                         )
@@ -196,21 +199,22 @@ fun StopScreen(nav: Navigator, stopId: String, trip: TripViewModel) {
         } else {
             item("next") { NextBus(shown.first(), now) { nav.open(RouteKey(data.timetable.routes[shown.first().route].id)) } }
             val groups = StopViewModel.group(shown.drop(1))
-            if (groups.isNotEmpty()) item("later-title") { SectionTitle(stringResource(R.string.later), Modifier.gutter().padding(top = Spacing.xl, bottom = Spacing.sm)) }
+            if (groups.isNotEmpty()) item("later-title") { GroupLabel(stringResource(R.string.later)) }
             items(groups.size, key = { groups[it].key }) { i ->
-                LineRow(groups[i], now) { nav.open(RouteKey(data.timetable.routes[groups[i].route].id)) }
+                LineRow(groups[i], now, isFirst = i == 0, isLast = i == groups.lastIndex) { nav.open(RouteKey(data.timetable.routes[groups[i].route].id)) }
             }
         }
         item("honesty") {
-            Text(stringResource(R.string.scheduled_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.gutter().padding(top = Spacing.xl))
+            Text(stringResource(R.string.scheduled_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.gutter().padding(start = 4.dp, top = Spacing.lg))
         }
     }
 }
 
 @Composable
 private fun chipColors() = FilterChipDefaults.filterChipColors(
-    selectedContainerColor = MaterialTheme.colorScheme.secondary,
-    selectedLabelColor = MaterialTheme.colorScheme.onSecondary,
+    selectedContainerColor = MaterialTheme.colorScheme.tertiary,
+    selectedLabelColor = MaterialTheme.colorScheme.onTertiary,
+    containerColor = MaterialTheme.colorScheme.surface,
 )
 
 @Composable
@@ -219,15 +223,15 @@ private fun NextBus(d: Departure, now: java.time.Instant, onClick: () -> Unit) {
     val route = data.timetable.routes[d.route]
     val spoken = stringResource(R.string.departure_cd, RouteCodes.sayable(route.code), d.destination, relativeText(now, d.time))
     Column(
-        Modifier.gutter().padding(top = Spacing.xl).fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp)).border(1.dp, LocalExtra.current.hairline, RoundedCornerShape(24.dp))
+        Modifier.gutter().padding(top = Spacing.lg).fillMaxWidth()
+            .clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surface)
             .clickable(role = Role.Button, onClick = onClick)
             .clearAndSetSemantics { contentDescription = spoken }
-            .padding(Spacing.xl),
+            .padding(Spacing.lg),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Eyebrow(stringResource(R.string.next_bus), Modifier.weight(1f))
-            Text(clock(d.time), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(clock(d.time), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(Spacing.md))
         RouteBadge(route, large = true)
@@ -243,7 +247,7 @@ private fun NextBus(d: Departure, now: java.time.Instant, onClick: () -> Unit) {
 }
 
 @Composable
-private fun LineRow(group: LineGroup, now: java.time.Instant, onClick: () -> Unit) {
+private fun LineRow(group: LineGroup, now: java.time.Instant, isFirst: Boolean, isLast: Boolean, onClick: () -> Unit) {
     val data = LocalTransit.current ?: return
     val route = data.timetable.routes[group.route]
     val first = group.departures.first()
@@ -251,16 +255,17 @@ private fun LineRow(group: LineGroup, now: java.time.Instant, onClick: () -> Uni
     val tf = rememberTimeFormat()
     val spoken = stringResource(R.string.departure_cd, RouteCodes.sayable(route.code), group.destination, tf.relative(now, first.time)) +
         next.joinToString("") { ", " + tf.relative(now, it.time) }
-    Column {
+    Column(Modifier.groupItem(isFirst, isLast, MaterialTheme.colorScheme.surface)) {
+        if (!isFirst) RowDivider()
         Row(
             Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
                 .clearAndSetSemantics { contentDescription = spoken }
-                .padding(horizontal = Spacing.gutter, vertical = Spacing.md),
+                .padding(start = Spacing.lg, end = Spacing.sm, top = Spacing.md, bottom = Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Departure-board columns: line, then destination with the following times.
+            Box(Modifier.widthIn(min = 52.dp).padding(end = Spacing.md)) { RouteBadge(route) }
             Column(Modifier.weight(1f)) {
-                RouteBadge(route, outlined = true)
-                Spacer(Modifier.height(6.dp))
                 Text(group.destination, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (next.isNotEmpty()) {
                     Text(next.joinToString(" · ") { tf.clock(it.time) }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -270,7 +275,6 @@ private fun LineRow(group: LineGroup, now: java.time.Instant, onClick: () -> Uni
             Minutes(now, first.time, large = false)
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Hairline(Modifier.padding(start = Spacing.gutter))
     }
 }
 

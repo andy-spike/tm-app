@@ -6,7 +6,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -101,6 +106,8 @@ fun TmApp() {
         val trip: TripViewModel = hiltViewModel(activity)
         CompositionLocalProvider(LocalTransit provides (state as? TransitState.Ready)?.data) {
             val top = stack.lastOrNull()
+            // Screens opening with the red band want light status-bar icons.
+            com.tmapp.android.ui.theme.SystemBars(lightIcons = top == TripKey || top == SavedKey || top == SettingsKey || top is SearchKey)
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.background,
                 contentWindowInsets = WindowInsets(0),
@@ -147,11 +154,14 @@ private fun TabBar(current: NavKey, nav: Navigator) {
 
 @Composable
 private fun TabBarContent(current: NavKey, nav: Navigator) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = androidx.compose.ui.unit.Dp(0f)) {
+    Column {
+    Box(Modifier.fillMaxWidth().height(1.dp).background(com.tmapp.android.ui.theme.LocalExtra.current.hairline))
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
         TabItem(current == NearbyKey, Icons.Rounded.NearMe, Icons.Outlined.NearMe, R.string.tab_nearby) { nav.tab(NearbyKey) }
         TabItem(current == TripKey, Icons.Rounded.Directions, Icons.Outlined.Directions, R.string.tab_trip) { nav.tab(TripKey) }
         TabItem(current == SavedKey, Icons.Rounded.Bookmark, Icons.Outlined.BookmarkBorder, R.string.tab_saved) { nav.tab(SavedKey) }
         TabItem(current == SettingsKey, Icons.Rounded.Settings, Icons.Outlined.Settings, R.string.tab_settings) { nav.tab(SettingsKey) }
+    }
     }
 }
 
@@ -161,10 +171,21 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(selected: Boolea
         selected = selected,
         onClick = onClick,
         icon = { Icon(if (selected) on else off, contentDescription = null) },
-        label = { Text(stringResource(label), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+        label = {
+            Text(
+                stringResource(label),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium),
+            )
+        },
+        // SBB-style: no pill, the selected tab simply turns red.
         colors = NavigationBarItemDefaults.colors(
-            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.primary,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            indicatorColor = androidx.compose.ui.graphics.Color.Transparent,
         ),
     )
 }

@@ -1,7 +1,7 @@
 package com.tmapp.android.ui.screens
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
@@ -49,6 +48,8 @@ import com.tmapp.android.ui.RouteViewModel
 import com.tmapp.android.ui.StopKey
 import com.tmapp.android.ui.components.CapFontScale
 import com.tmapp.android.ui.components.Eyebrow
+import com.tmapp.android.ui.components.GroupLabel
+import com.tmapp.android.ui.components.groupItem
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.ScheduledTag
 import com.tmapp.android.ui.components.SkeletonRows
@@ -130,8 +131,13 @@ fun RouteScreen(nav: Navigator, routeId: String) {
                         SegmentedButton(
                             selected = i == state.selected,
                             onClick = { vm.select(i) },
-                            shape = SegmentedButtonDefaults.itemShape(i, minOf(3, directions.size)),
+                            shape = SegmentedButtonDefaults.itemShape(i, minOf(3, directions.size), MaterialTheme.shapes.small),
                             modifier = Modifier.heightIn(min = 48.dp),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = MaterialTheme.colorScheme.tertiary,
+                                activeContentColor = MaterialTheme.colorScheme.onTertiary,
+                                inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                            ),
                             label = { Text(stringResource(R.string.toward, d.destination), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         )
                     }
@@ -147,26 +153,24 @@ fun RouteScreen(nav: Navigator, routeId: String) {
                 Tile(stringResource(R.string.trips_today), if (direction.tripsToday > 0) direction.tripsToday.toString() else notToday, Modifier.weight(1f))
             }
         }
-        item("scheduled") { ScheduledTag(Modifier.gutter().padding(top = Spacing.md)) }
+        item("scheduled") { ScheduledTag(Modifier.gutter().padding(start = 4.dp, top = Spacing.md)) }
         item("stops-title") {
-            Text(
-                pluralStringResource(R.plurals.stop_count, direction.stops.size, direction.stops.size),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.gutter().padding(top = Spacing.xl, bottom = Spacing.sm).semantics { heading() },
-            )
+            GroupLabel(pluralStringResource(R.plurals.stop_count, direction.stops.size, direction.stops.size))
         }
         val n = direction.stops.size
         items(n, key = { "s$it" }) { i ->
             val stop = tt.stops[direction.stops[i]]
             val station = tt.stops[tt.rootOf(stop.index)]
-            TimelineRow(
-                title = station.name,
-                subtitle = stop.name.takeIf { it != station.name },
-                color = color,
-                first = i == 0,
-                last = i == n - 1,
-                onClick = { nav.open(StopKey(station.id)) },
-            )
+            Column(Modifier.groupItem(i == 0, i == n - 1, MaterialTheme.colorScheme.surface).padding(top = if (i == 0) Spacing.sm else 0.dp, bottom = if (i == n - 1) Spacing.sm else 0.dp)) {
+                TimelineRow(
+                    title = station.name,
+                    subtitle = stop.name.takeIf { it != station.name },
+                    color = color,
+                    first = i == 0,
+                    last = i == n - 1,
+                    onClick = { nav.open(StopKey(station.id)) },
+                )
+            }
         }
     }
 }
@@ -174,16 +178,19 @@ fun RouteScreen(nav: Navigator, routeId: String) {
 @Composable
 private fun Tile(label: String, value: String, modifier: Modifier) {
     Column(
-        modifier.fillMaxHeight().clip(RoundedCornerShape(16.dp)).border(1.dp, LocalExtra.current.hairline, RoundedCornerShape(16.dp))
+        modifier.fillMaxHeight().clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surface)
             .padding(Spacing.md).semantics(mergeDescendants = true) {},
     ) {
         Eyebrow(label)
         Spacer(Modifier.height(6.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+        Text(com.tmapp.android.ui.components.clockText(value), style = MaterialTheme.typography.titleLarge, maxLines = 2)
     }
 }
 
-/** A stop on a vertical line; terminals are larger rings. */
+/**
+ * A stop on a vertical line, inside a grouped card. An optional time sits in its own column on the
+ * left, like a timetable; terminals and changes get larger rings.
+ */
 @Composable
 fun TimelineRow(
     title: String,
@@ -192,35 +199,47 @@ fun TimelineRow(
     first: Boolean,
     last: Boolean,
     onClick: (() -> Unit)?,
-    trailing: String? = null,
+    time: String? = null,
     emphasis: Boolean = first || last,
     dashedAbove: Boolean = false,
     dashedBelow: Boolean = false,
+    timeColumn: Boolean = time != null,
 ) {
-    val bg = MaterialTheme.colorScheme.background
+    val bg = MaterialTheme.colorScheme.surface
+    // Walking stretches are always grey dots, whatever line they connect.
+    val walk = LocalExtra.current.walk
     Row(
         Modifier.fillMaxWidth().height(IntrinsicSize.Min)
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .semantics(mergeDescendants = true) {}
-            .padding(horizontal = Spacing.gutter),
+            .padding(horizontal = Spacing.lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Canvas(Modifier.width(24.dp).fillMaxHeight()) {
+        if (timeColumn) {
+            Text(
+                com.tmapp.android.ui.components.clockText(time.orEmpty()),
+                style = if (emphasis) MaterialTheme.typography.titleSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) else MaterialTheme.typography.bodySmall,
+                color = if (emphasis) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(76.dp),
+                maxLines = 1,
+            )
+        }
+        Canvas(Modifier.width(20.dp).fillMaxHeight()) {
             val x = size.width / 2
             val cy = size.height / 2
-            val w = 4.dp.toPx()
-            val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 5.dp.toPx()))
-            if (!first) drawLine(color, Offset(x, 0f), Offset(x, cy), w, pathEffect = if (dashedAbove) dash else null)
-            if (!last) drawLine(color, Offset(x, cy), Offset(x, size.height), w, pathEffect = if (dashedBelow) dash else null)
-            val r = if (emphasis) 7.dp.toPx() else 4.5.dp.toPx()
+            val w = 5.dp.toPx()
+            val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(0.1f, 6.dp.toPx()))
+            val walkCap = androidx.compose.ui.graphics.StrokeCap.Round
+            if (!first) drawLine(if (dashedAbove) walk else color, Offset(x, 0f), Offset(x, cy), if (dashedAbove) 3.dp.toPx() else w, cap = if (dashedAbove) walkCap else androidx.compose.ui.graphics.StrokeCap.Butt, pathEffect = if (dashedAbove) dash else null)
+            if (!last) drawLine(if (dashedBelow) walk else color, Offset(x, cy), Offset(x, size.height), if (dashedBelow) 3.dp.toPx() else w, cap = if (dashedBelow) walkCap else androidx.compose.ui.graphics.StrokeCap.Butt, pathEffect = if (dashedBelow) dash else null)
+            val r = if (emphasis) 7.dp.toPx() else 4.dp.toPx()
             drawCircle(color, r, Offset(x, cy))
-            drawCircle(bg, r - 2.5.dp.toPx(), Offset(x, cy))
+            drawCircle(bg, r - (if (emphasis) 2.5.dp.toPx() else 1.5.dp.toPx()), Offset(x, cy))
         }
         Spacer(Modifier.width(Spacing.md))
-        Column(Modifier.weight(1f).padding(vertical = if (emphasis) 14.dp else 11.dp)) {
-            Text(title, style = if (emphasis) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge)
+        Column(Modifier.weight(1f).padding(vertical = if (emphasis) 13.dp else 9.dp)) {
+            Text(title, style = if (emphasis) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium)
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (trailing != null) Text(trailing, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

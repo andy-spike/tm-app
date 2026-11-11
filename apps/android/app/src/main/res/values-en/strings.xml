@@ -5,9 +5,6 @@
     <string name="tab_saved">Saved</string>
     <string name="tab_settings">Settings</string>
     <string name="back">Back</string>
-    <string name="greeting_morning">Good morning</string>
-    <string name="greeting_afternoon">Good afternoon</string>
-    <string name="greeting_evening">Good evening</string>
     <string name="where_to">Where to?</string>
     <string name="search_hint">Route, station or stop</string>
     <string name="scheduled">Scheduled</string>
@@ -93,6 +90,12 @@
     <string name="cancel">Cancel</string>
     <string name="trip_empty">Choose a start and destination to see how to get there.</string>
     <string name="trip_none">We couldn\'t find a bus trip at that time. Try another time or a nearby point.</string>
+    <string name="trip_empty_title">Plan your trip</string>
+    <string name="trip_none_title">No connections</string>
+    <string name="connections">Connections</string>
+    <string name="departures">Departures</string>
+    <string name="stops_on_route">Stops</string>
+    <string name="journey">Journey</string>
     <string name="trip_need_location">Turn on location or choose a start.</string>
     <string name="trip_no_fix">We couldn\'t find your location. Check that it is on, or choose a start.</string>
     <string name="walk_only">Walk only</string>
@@ -143,6 +146,6 @@
     <string name="privacy_title">Privacy</string>
     <string name="privacy_body">No account and no ads. Your location is used only on this phone to show nearby stops and plan trips. The app goes online only to download new timetables.</string>
     <string name="about_title">Data and credits</string>
-    <string name="about_body">Timetables: TransMilenio S.A. open GTFS data. Map: © OpenStreetMap contributors, Protomaps. Geist typeface (SIL OFL). Not an official TransMilenio or city app.</string>
+    <string name="about_body">Timetables: TransMilenio S.A. open GTFS data. Map: © OpenStreetMap contributors, Protomaps. Source Sans 3 typeface (SIL OFL). Not an official TransMilenio or city app.</string>
     <string name="version_label">Version %1$s</string>
 </resources>

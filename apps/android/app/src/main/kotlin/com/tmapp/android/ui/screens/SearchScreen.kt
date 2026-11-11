@@ -64,8 +64,10 @@ import com.tmapp.android.ui.RouteKey
 import com.tmapp.android.ui.SearchViewModel
 import com.tmapp.android.ui.StopKey
 import com.tmapp.android.ui.TripViewModel
-import com.tmapp.android.ui.components.Eyebrow
-import com.tmapp.android.ui.components.Hairline
+import com.tmapp.android.ui.components.GroupLabel
+import com.tmapp.android.ui.components.RowDivider
+import com.tmapp.android.ui.components.groupItem
+import com.tmapp.android.ui.theme.LocalExtra
 import com.tmapp.android.ui.components.RouteBadge
 import com.tmapp.android.ui.components.RouteBadges
 import com.tmapp.android.ui.components.StopTile
@@ -115,10 +117,11 @@ fun SearchScreen(nav: Navigator, mode: SearchMode, trip: TripViewModel) {
         nav.open(RouteKey(route.id))
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm, vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding()) {
+        // The query bar sits on the red band, like the planner it feeds.
+        Row(Modifier.fillMaxWidth().background(LocalExtra.current.header).statusBarsPadding().padding(horizontal = Spacing.sm, vertical = Spacing.md), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { keyboard?.hide(); nav.back() }, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back), tint = LocalExtra.current.onHeader)
             }
             TextField(
                 value = query,
@@ -129,12 +132,12 @@ fun SearchScreen(nav: Navigator, mode: SearchMode, trip: TripViewModel) {
                 },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge,
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                 ),
                 trailingIcon = {
                     if (query.isNotEmpty()) IconButton(onClick = { vm.query.value = "" }) { Icon(Icons.Rounded.Close, stringResource(R.string.clear)) }
@@ -153,7 +156,7 @@ fun SearchScreen(nav: Navigator, mode: SearchMode, trip: TripViewModel) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
             if (mode != SearchMode.BROWSE && query.isBlank()) {
                 item("me") {
-                    PlainRow(Icons.Rounded.MyLocation, stringResource(R.string.my_location), null) {
+                    PlainRow(Icons.Rounded.MyLocation, stringResource(R.string.my_location), null, first = true, last = true, top = Spacing.lg) {
                         if (trip.state.value.from == Endpoint.MyLocation && mode == SearchMode.TO) trip.setFrom(null)
                         permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                     }
@@ -164,18 +167,21 @@ fun SearchScreen(nav: Navigator, mode: SearchMode, trip: TripViewModel) {
                 val shown = recents.filter { mode == SearchMode.BROWSE || it.stopId != null }
                 if (shown.isNotEmpty()) {
                     item("recent-title") {
-                        Row(Modifier.fillMaxWidth().padding(start = Spacing.gutter, end = Spacing.sm, top = Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
-                            Eyebrow(stringResource(R.string.recent), Modifier.weight(1f))
-                            TextButton(onClick = vm::clearRecents) { Text(stringResource(R.string.clear_recents)) }
+                        Row(Modifier.fillMaxWidth().padding(end = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                            GroupLabel(stringResource(R.string.recent), Modifier.weight(1f))
+                            TextButton(onClick = vm::clearRecents, modifier = Modifier.padding(top = Spacing.md)) { Text(stringResource(R.string.clear_recents)) }
                         }
                     }
-                    items(shown, key = { it.key }) { r ->
+                    items(shown.size, key = { shown[it].key }) { i ->
+                        val r = shown[i]
                         val tt = data?.timetable
                         val route = r.routeId?.let { tt?.routeById(it) }
                         val stop = r.stopId?.let { tt?.stopById(it) }
+                        val first = i == 0
+                        val last = i == shown.lastIndex
                         when {
-                            route != null -> RouteRow(route.index) { pickRoute(route.index) }
-                            stop != null -> PlainRow(Icons.Rounded.History, stop.name, stopKind(stop)) { pickStop(stop.index) }
+                            route != null -> RouteRow(route.index, first, last) { pickRoute(route.index) }
+                            stop != null -> PlainRow(Icons.Rounded.History, stop.name, stopKind(stop), first, last) { pickStop(stop.index) }
                         }
                     }
                 } else {
@@ -192,10 +198,13 @@ fun SearchScreen(nav: Navigator, mode: SearchMode, trip: TripViewModel) {
                 }
                 val tt = data?.timetable
                 val repeated = shown.filterIsInstance<SearchHit.StopHit>().groupBy { tt?.stops?.get(it.stop)?.name }.filterValues { it.size > 1 }.keys
-                items(shown, key = { when (it) { is SearchHit.StopHit -> "s${it.stop}"; is SearchHit.RouteHit -> "r${it.route}" } }) { hit ->
-                    when (hit) {
-                        is SearchHit.StopHit -> StopResult(hit.stop, showCode = tt?.stops?.get(hit.stop)?.name in repeated) { pickStop(hit.stop) }
-                        is SearchHit.RouteHit -> RouteRow(hit.route) { pickRoute(hit.route) }
+                if (shown.isNotEmpty()) item("results-gap") { Spacer(Modifier.height(Spacing.lg)) }
+                items(shown.size, key = { when (val h = shown[it]) { is SearchHit.StopHit -> "s${h.stop}"; is SearchHit.RouteHit -> "r${h.route}" } }) { i ->
+                    val first = i == 0
+                    val last = i == shown.lastIndex
+                    when (val hit = shown[i]) {
+                        is SearchHit.StopHit -> StopResult(hit.stop, showCode = tt?.stops?.get(hit.stop)?.name in repeated, first = first, last = last) { pickStop(hit.stop) }
+                        is SearchHit.RouteHit -> RouteRow(hit.route, first, last) { pickRoute(hit.route) }
                     }
                 }
             }
@@ -204,14 +213,16 @@ fun SearchScreen(nav: Navigator, mode: SearchMode, trip: TripViewModel) {
 }
 
 @Composable
-private fun PlainRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String?, onClick: () -> Unit) {
+private fun PlainRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String?, first: Boolean, last: Boolean, top: androidx.compose.ui.unit.Dp = 0.dp, onClick: () -> Unit) {
+    Column(Modifier.padding(top = top).groupItem(first, last, MaterialTheme.colorScheme.surface)) {
+    if (!first) RowDivider(start = 64.dp)
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = Spacing.gutter, vertical = Spacing.md),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(20.dp))
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
         }
         Spacer(Modifier.width(Spacing.md))
         Column(Modifier.weight(1f)) {
@@ -219,17 +230,19 @@ private fun PlainRow(icon: androidx.compose.ui.graphics.vector.ImageVector, titl
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+    }
 }
 
 @Composable
-private fun StopResult(index: Int, showCode: Boolean = false, onClick: () -> Unit) {
+private fun StopResult(index: Int, showCode: Boolean = false, first: Boolean, last: Boolean, onClick: () -> Unit) {
     val data = LocalTransit.current ?: return
     val stop = data.timetable.stops[index]
     val routes = remember(index) { data.schedule.routesAt(index).map { data.timetable.routes[it] } }
-    Column {
+    Column(Modifier.groupItem(first, last, MaterialTheme.colorScheme.surface)) {
+        if (!first) RowDivider(start = 64.dp)
         Row(
             Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = Spacing.gutter, vertical = Spacing.md),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         ) {
             StopTile(stop)
             Spacer(Modifier.width(Spacing.md))
@@ -239,29 +252,28 @@ private fun StopResult(index: Int, showCode: Boolean = false, onClick: () -> Uni
                 Text(listOfNotNull(stopKind(stop), code).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (routes.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
-                    RouteBadges(routes, max = 6)
+                    RouteBadges(routes, max = 8)
                 }
             }
         }
-        Hairline(Modifier.padding(start = Spacing.gutter + 52.dp))
     }
 }
 
 @Composable
-fun RouteRow(index: Int, onClick: () -> Unit) {
+fun RouteRow(index: Int, first: Boolean, last: Boolean, onClick: () -> Unit) {
     val data = LocalTransit.current ?: return
     val route = data.timetable.routes[index]
-    Column {
+    Column(Modifier.groupItem(first, last, MaterialTheme.colorScheme.surface)) {
+        if (!first) RowDivider()
         Row(
-            Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(horizontal = Spacing.gutter, vertical = Spacing.md),
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = Spacing.lg, vertical = Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(92.dp)) { RouteBadge(route, large = true) }
+            Box(Modifier.width(84.dp)) { RouteBadge(route, large = true) }
             Column(Modifier.weight(1f)) {
                 Text(route.longName.ifBlank { route.code }, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(systemLabel(route.system), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Hairline(Modifier.padding(start = Spacing.gutter))
     }
 }
